@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/router'; // Changed from 'next/navigation'
 import { Search, BadgeCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,7 +13,7 @@ export default function RightSidebar() {
   const [accounts, setAccounts] = useState<any[]>([]);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loadingFollow, setLoadingFollow] = useState<string | null>(null);
-  const router = useRouter();
+  const router = useRouter(); // Now correctly using next/router
 
   useEffect(() => {
     async function init() {
