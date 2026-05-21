@@ -21,7 +21,6 @@ export default function UserProfilePage() {
       if (!username) return;
       try {
         setLoading(true);
-        // Fetch profile
         const { data: userData, error: userError } = await supabase
           .from('profiles')
           .select('*')
@@ -31,7 +30,6 @@ export default function UserProfilePage() {
         if (userError || !userData) throw new Error("User not found");
         setProfile(userData);
 
-        // Fetch Stats
         const [postsCountRes, followersRes, followingRes] = await Promise.all([
           supabase.from('posts').select('id', { count: 'exact', head: true }).eq('author_id', userData.id),
           supabase.from('follows').select('id', { count: 'exact', head: true }).eq('following_id', userData.id),
@@ -44,10 +42,9 @@ export default function UserProfilePage() {
           following: followingRes.count || 0
         });
 
-        // Fetch Posts
         const { data: postsData } = await supabase
           .from('posts')
-          .select(`id, content, image, created_at, mood, location, likes (user_id), bookmarks (user_id)`)
+          .select(`id, content, image, created_at, mood, location`)
           .eq('author_id', userData.id)
           .order('created_at', { ascending: false });
 
@@ -55,8 +52,6 @@ export default function UserProfilePage() {
           setPosts(postsData.map((p: any) => ({
             ...p,
             createdAt: new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
-            likes: p.likes?.length || 0,
-            isLiked: false, // You can add logic here to check if current user liked it
             author: userData
           })));
         }
@@ -70,75 +65,41 @@ export default function UserProfilePage() {
   }, [username]);
 
   if (loading) return <div className="flex justify-center p-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  if (!profile) return <div className="p-12 text-center text-muted-foreground">User not found.</div>;
+  if (!profile) return <div className="p-12 text-center">User not found.</div>;
 
   return (
-    <main className="flex-1 max-w-2xl min-h-screen border-x border-border">
-      {/* Header */}
+    <div className="min-h-screen border-x border-border">
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg px-4 py-3 flex items-center gap-4">
-        <button onClick={() => router.back()} className="rounded-full p-2 hover:bg-secondary/50 transition-colors">
-          <ArrowLeft className="h-5 w-5" />
-        </button>
+        <button onClick={() => router.back()} className="rounded-full p-2 hover:bg-secondary/50"><ArrowLeft className="h-5 w-5" /></button>
         <div>
-          <h1 className="font-bold text-xl flex items-center gap-1">
-            {profile.display_name} 
-            {profile.is_verified && <BadgeCheck className="h-4 w-4 text-primary" />}
-          </h1>
+          <h1 className="font-bold text-xl flex items-center gap-1">{profile.display_name} {profile.is_verified && <BadgeCheck className="h-4 w-4 text-primary" />}</h1>
           <p className="text-xs text-muted-foreground">{stats.postsCount} posts</p>
         </div>
       </header>
 
-      {/* Cover Image */}
       <div className="h-48 bg-secondary">
-        {profile.cover_image && (
-          <img src={profile.cover_image} className="w-full h-full object-cover" alt="Cover" />
-        )}
+        {profile.cover_image && <img src={profile.cover_image} className="w-full h-full object-cover" alt="Cover" />}
       </div>
 
-      {/* Profile Info */}
       <div className="px-4 pb-4 relative">
-        <Avatar className="h-32 w-32 border-4 border-background -mt-16 mb-4">
-          <AvatarImage src={profile.avatar} />
-          <AvatarFallback>{profile.display_name?.[0]}</AvatarFallback>
-        </Avatar>
-        
-        <h2 className="text-2xl font-bold flex items-center gap-1">
-          {profile.display_name} 
-          {profile.is_verified && <BadgeCheck className="text-primary" />}
-        </h2>
+        <Avatar className="h-32 w-32 border-4 border-background -mt-16 mb-4"><AvatarImage src={profile.avatar} /><AvatarFallback>{profile.display_name[0]}</AvatarFallback></Avatar>
+        <h2 className="text-2xl font-bold flex items-center gap-1">{profile.display_name} {profile.is_verified && <BadgeCheck className="text-primary" />}</h2>
         <p className="text-muted-foreground">@{profile.username}</p>
-        
-        <p className="mt-4 text-foreground">{profile.bio}</p>
-        
+        <p className="mt-4">{profile.bio}</p>
         <div className="flex flex-wrap gap-4 mt-4 text-muted-foreground text-sm">
           {profile.location && <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{profile.location}</span>}
-          {profile.website && (
-            <span className="flex items-center gap-1">
-              <LinkIcon className="h-4 w-4" />
-              <a href={profile.website} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{profile.website}</a>
-            </span>
-          )}
-          <span className="flex items-center gap-1">
-            <Calendar className="h-4 w-4" />
-            Joined {new Date(profile.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-          </span>
+          {profile.website && <span className="flex items-center gap-1"><LinkIcon className="h-4 w-4" /><a href={profile.website} className="text-primary hover:underline">{profile.website}</a></span>}
+          <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />Joined {new Date(profile.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>
         </div>
-
         <div className="flex gap-6 mt-4">
-          <p className="font-bold text-foreground">{formatNumber(stats.following)} <span className="text-muted-foreground font-normal">Following</span></p>
-          <p className="font-bold text-foreground">{formatNumber(stats.followers)} <span className="text-muted-foreground font-normal">Followers</span></p>
+          <p className="font-bold">{formatNumber(stats.following)} <span className="text-muted-foreground font-normal">Following</span></p>
+          <p className="font-bold">{formatNumber(stats.followers)} <span className="text-muted-foreground font-normal">Followers</span></p>
         </div>
       </div>
 
-      {/* User Posts */}
       <div className="border-t border-border">
-        {posts.map((p) => (
-          <PostCard key={p.id} post={p} />
-        ))}
-        {posts.length === 0 && (
-          <div className="p-8 text-center text-muted-foreground">No posts to show.</div>
-        )}
+        {posts.map((p) => <PostCard key={p.id} post={p} />)}
       </div>
-    </main>
+    </div>
   );
 }
