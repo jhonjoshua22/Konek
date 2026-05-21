@@ -77,7 +77,7 @@ export default function ExplorePage() {
             content,
             image,
             created_at,
-            author:profiles(id, display_name, avatar)
+            author:profiles(id, display_name, avatar, is_verified)
           `)
           .not('image', 'is', null)
           .order('created_at', { ascending: false })
