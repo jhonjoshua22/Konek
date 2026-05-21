@@ -100,6 +100,7 @@ export default function PostCard({ post }: PostCardProps) {
   // Fetch Full Thread Comments
   // Fetch Full Thread Comments
   // Fetch Full Thread Comments
+  // Fetch Full Thread Comments
   const fetchCommentsList = async () => {
     try {
       setIsLoadingComments(true);
@@ -107,13 +108,7 @@ export default function PostCard({ post }: PostCardProps) {
       // 1. Fetch comments for this post
       const { data: commentsData, error: commentsError } = await supabase
         .from('comments')
-        .select(`
-          id,
-          content,
-          created_at,
-          user_id,
-          comment_likes(user_id)
-        `)
+        .select('id, content, created_at, user_id')
         .eq('post_id', post.id)
         .order('created_at', { ascending: true });
 
@@ -125,31 +120,32 @@ export default function PostCard({ post }: PostCardProps) {
         return;
       }
 
-      // 2. Fetch unique user profiles for these comments
+      // 2. Fetch profiles and likes separately to avoid join issues
+      const commentIds = commentsData.map(c => c.id);
       const userIds = [...new Set(commentsData.map(c => c.user_id))];
-      const { data: profilesData } = await supabase
-        .from('profiles')
-        .select('id, username, display_name, avatar, is_verified')
-        .in('id', userIds);
 
-      const profilesMap = (profilesData || []).reduce((acc: any, profile: any) => {
-        acc[profile.id] = profile;
+      const [profilesRes, likesRes] = await Promise.all([
+        supabase.from('profiles').select('id, username, display_name, avatar, is_verified').in('id', userIds),
+        supabase.from('comment_likes').select('comment_id, user_id').in('comment_id', commentIds)
+      ]);
+
+      const profilesMap = (profilesRes.data || []).reduce((acc: any, p: any) => ({ ...acc, [p.id]: p }), {});
+      
+      // Group likes by comment_id
+      const likesMap = (likesRes.data || []).reduce((acc: any, like: any) => {
+        if (!acc[like.comment_id]) acc[like.comment_id] = [];
+        acc[like.comment_id].push(like.user_id);
         return acc;
       }, {});
 
-      // 3. Merge profiles with comments
+      // 3. Merge data
       const processedComments = commentsData.map((comment: any) => {
-        const userLikes = comment.comment_likes || [];
-        const commentLikesCount = userLikes.length;
-        const hasLikedComment = currentUserId 
-          ? userLikes.some((like: any) => like.user_id === currentUserId)
-          : false;
-
+        const commentLikes = likesMap[comment.id] || [];
         return {
           ...comment,
           profiles: profilesMap[comment.user_id] || { display_name: 'User', username: 'user' },
-          likesCount: commentLikesCount,
-          isLiked: hasLikedComment
+          likesCount: commentLikes.length,
+          isLiked: currentUserId ? commentLikes.includes(currentUserId) : false
         };
       });
 
