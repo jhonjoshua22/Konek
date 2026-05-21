@@ -8,8 +8,6 @@ import { Button } from '@/components/ui/button';
 import { formatNumber } from '@/lib/mock-data';
 import PostCard from '@/components/feed/PostCard';
 import { supabase } from '@/lib/supabase';
-import Sidebar from '@/components/layout/Sidebar';
-import RightSidebar from '@/components/layout/RightSidebar';
 
 export default function UserProfilePage() {
   const params = useParams();
@@ -102,50 +100,46 @@ export default function UserProfilePage() {
   if (!profile) return <div className="p-12 text-center">User not found.</div>;
 
   return (
-    <div className="flex justify-center w-full">
-      <Sidebar />
-      <main className="flex-1 max-w-2xl min-h-screen border-x border-border">
-        <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg px-4 py-3 flex items-center gap-4">
-          <button onClick={() => router.back()} className="rounded-full p-2 hover:bg-secondary/50"><ArrowLeft className="h-5 w-5" /></button>
-          <div>
-            <h1 className="font-bold text-xl flex items-center gap-1">{profile.display_name} {profile.is_verified && <BadgeCheck className="h-4 w-4 text-primary" />}</h1>
-            <p className="text-xs text-muted-foreground">{stats.postsCount} posts</p>
-          </div>
-        </header>
+    <div className="max-w-2xl min-h-screen border-x border-border">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg px-4 py-3 flex items-center gap-4">
+        <button onClick={() => router.back()} className="rounded-full p-2 hover:bg-secondary/50"><ArrowLeft className="h-5 w-5" /></button>
+        <div>
+          <h1 className="font-bold text-xl flex items-center gap-1">{profile.display_name} {profile.is_verified && <BadgeCheck className="h-4 w-4 text-primary" />}</h1>
+          <p className="text-xs text-muted-foreground">{stats.postsCount} posts</p>
+        </div>
+      </header>
 
-        <div className="h-48 bg-secondary">
-          {profile.cover_image && <img src={profile.cover_image} className="w-full h-full object-cover" alt="Cover" />}
+      <div className="h-48 bg-secondary">
+        {profile.cover_image && <img src={profile.cover_image} className="w-full h-full object-cover" alt="Cover" />}
+      </div>
+
+      <div className="px-4 pb-4 relative">
+        <div className="flex justify-between items-start">
+          <Avatar className="h-32 w-32 border-4 border-background -mt-16 mb-4"><AvatarImage src={profile.avatar} /><AvatarFallback>{profile.display_name[0]}</AvatarFallback></Avatar>
+          <Button variant={isFollowed ? "outline" : "default"} className="mt-4 rounded-full" onClick={toggleFollow}>
+            {isFollowed ? "Followed" : "Follow"}
+          </Button>
         </div>
 
-        <div className="px-4 pb-4 relative">
-          <div className="flex justify-between items-start">
-            <Avatar className="h-32 w-32 border-4 border-background -mt-16 mb-4"><AvatarImage src={profile.avatar} /><AvatarFallback>{profile.display_name[0]}</AvatarFallback></Avatar>
-            <Button variant={isFollowed ? "outline" : "default"} className="mt-4 rounded-full" onClick={toggleFollow}>
-              {isFollowed ? "Followed" : "Follow"}
-            </Button>
-          </div>
-
-          <h2 className="text-2xl font-bold flex items-center gap-1">{profile.display_name} {profile.is_verified && <BadgeCheck className="text-primary" />}</h2>
-          <p className="text-muted-foreground">@{profile.username}</p>
-          <p className="mt-4">{profile.bio}</p>
-          
-          <div className="flex flex-wrap gap-4 mt-4 text-muted-foreground text-sm">
-            {profile.location && <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{profile.location}</span>}
-            {profile.website && <span className="flex items-center gap-1"><LinkIcon className="h-4 w-4" /><a href={profile.website} className="text-primary hover:underline">{profile.website}</a></span>}
-            <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />Joined {new Date(profile.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>
-          </div>
-
-          <div className="flex gap-6 mt-4">
-            <p className="font-bold">{formatNumber(stats.following)} <span className="text-muted-foreground font-normal">Following</span></p>
-            <p className="font-bold">{formatNumber(stats.followers)} <span className="text-muted-foreground font-normal">Followers</span></p>
-          </div>
+        <h2 className="text-2xl font-bold flex items-center gap-1">{profile.display_name} {profile.is_verified && <BadgeCheck className="text-primary" />}</h2>
+        <p className="text-muted-foreground">@{profile.username}</p>
+        <p className="mt-4">{profile.bio}</p>
+        
+        <div className="flex flex-wrap gap-4 mt-4 text-muted-foreground text-sm">
+          {profile.location && <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{profile.location}</span>}
+          {profile.website && <span className="flex items-center gap-1"><LinkIcon className="h-4 w-4" /><a href={profile.website} className="text-primary hover:underline">{profile.website}</a></span>}
+          <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />Joined {new Date(profile.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>
         </div>
 
-        <div className="border-t border-border">
-          {posts.map((p) => <PostCard key={p.id} post={p} />)}
+        <div className="flex gap-6 mt-4">
+          <p className="font-bold">{formatNumber(stats.following)} <span className="text-muted-foreground font-normal">Following</span></p>
+          <p className="font-bold">{formatNumber(stats.followers)} <span className="text-muted-foreground font-normal">Followers</span></p>
         </div>
-      </main>
-      <RightSidebar />
+      </div>
+
+      <div className="border-t border-border">
+        {posts.map((p) => <PostCard key={p.id} post={p} />)}
+      </div>
     </div>
   );
 }
