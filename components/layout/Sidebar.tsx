@@ -98,7 +98,6 @@ export default function Sidebar() {
         </ul>
       </nav>
 
-      {/* Post Button */}
       <Button className="mt-4 w-full rounded-full py-6 text-lg font-semibold">
         Post
       </Button>
@@ -116,7 +115,6 @@ export default function Sidebar() {
           </div>
         </div>
         
-        {/* Sign Out Action Button */}
         <button
           onClick={handleSignOut}
           className="mt-1 flex items-center justify-center gap-2 w-full rounded-lg py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors border border-destructive/10"
