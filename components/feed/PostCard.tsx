@@ -352,7 +352,6 @@ export default function PostCard({ post }: PostCardProps) {
                   <span className="text-muted-foreground hover:underline">{post.createdAt}</span>
                 </div>
                 
-                {/* Display Mood and Location below Name/Username */}
                 {(post.mood || post.location) && (
                   <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
                     {post.mood && (
@@ -455,11 +454,11 @@ export default function PostCard({ post }: PostCardProps) {
 
       {isCommentsModalOpen && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4 bg-background/80 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center p-0 bg-background/80 backdrop-blur-sm"
           onClick={() => setIsCommentsModalOpen(false)}
         >
           <div 
-            className="w-full max-w-xl h-screen md:h-auto md:max-h-[85vh] overflow-hidden rounded-none md:rounded-2xl border border-border bg-background shadow-lg flex flex-col animate-in fade-in zoom-in-95 duration-150"
+            className="w-full max-w-xl h-screen overflow-hidden border-x border-border bg-background shadow-lg flex flex-col animate-in fade-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
