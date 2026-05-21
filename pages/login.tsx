@@ -1,3 +1,5 @@
+'use client';
+
 import Head from 'next/head';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
@@ -5,13 +7,16 @@ import { supabase } from '@/lib/supabase'; // Assumes your client is initialized
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Lock, Mail, Chrome, AlertCircle } from 'lucide-react';
+import { Lock, Mail, Chrome, AlertCircle, User, UserCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -26,22 +31,34 @@ export default function LoginPage() {
     checkUserSession();
   }, [router]);
 
-  // Handle traditional Email/Password Login
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  // Handle Auth (Login or Sign Up)
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setErrorMessage(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) throw error;
-
-      // Send the user to the dashboard feed upon successful validation
-      router.push('/');
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              username,
+              name,
+            },
+          },
+        });
+        if (error) throw error;
+        alert('Account created! Please check your email to confirm your account.');
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+        router.push('/');
+      }
     } catch (error: any) {
       setErrorMessage(error.message || 'An error occurred during authentication.');
     } finally {
@@ -55,32 +72,31 @@ export default function LoginPage() {
     setErrorMessage(null);
 
     try {
-        // Detect if the app is running on Vercel or locally
-        const redirectUrl = typeof window !== 'undefined' 
+      const redirectUrl = typeof window !== 'undefined' 
         ? (window.location.hostname === 'localhost' 
             ? 'http://localhost:3000/' 
             : 'https://konek-flamefoundation.vercel.app/')
         : undefined;
 
-        const { error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-            redirectTo: redirectUrl,
+          redirectTo: redirectUrl,
         },
-        });
+      });
 
-        if (error) throw error;
+      if (error) throw error;
     } catch (error: any) {
-        setErrorMessage(error.message || 'Failed to initialize Google login.');
-        setLoading(false);
+      setErrorMessage(error.message || 'Failed to initialize Google login.');
+      setLoading(false);
     }
   };
 
   return (
     <>
       <Head>
-        <title>Login / Konek</title>
-        <meta name="description" content="Log in to your Konek account" />
+        <title>{isSignUp ? 'Create Account' : 'Login'} / Konek</title>
+        <meta name="description" content={isSignUp ? "Create a Konek account" : "Log in to your Konek account"} />
       </Head>
 
       <div className="min-h-screen flex items-center justify-center border-x border-border px-4 py-12 bg-background">
@@ -92,7 +108,7 @@ export default function LoginPage() {
               Konek
             </h1>
             <p className="text-sm text-muted-foreground">
-              Welcome back. Connect with the future of web design.
+              {isSignUp ? 'Join our community.' : 'Welcome back. Connect with the future of web design.'}
             </p>
           </div>
 
@@ -105,7 +121,44 @@ export default function LoginPage() {
           )}
 
           {/* Main Auth Interaction Form */}
-          <form onSubmit={handleEmailLogin} className="space-y-4">
+          <form onSubmit={handleAuth} className="space-y-4">
+            {isSignUp && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <div className="relative">
+                    <UserCircle className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="John Doe"
+                      className="pl-10 h-11 bg-secondary/30 border-border rounded-xl focus-visible:ring-primary"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="username"
+                      type="text"
+                      placeholder="johndoe"
+                      className="pl-10 h-11 bg-secondary/30 border-border rounded-xl focus-visible:ring-primary"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="email">Email Address</Label>
               <div className="relative">
@@ -126,9 +179,11 @@ export default function LoginPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <a href="#" className="text-xs text-primary hover:underline font-medium">
-                  Forgot password?
-                </a>
+                {!isSignUp && (
+                  <a href="#" className="text-xs text-primary hover:underline font-medium">
+                    Forgot password?
+                  </a>
+                )}
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-3.5 h-4 w-4 text-muted-foreground" />
@@ -150,40 +205,48 @@ export default function LoginPage() {
               className="w-full h-11 rounded-xl font-semibold transition-all mt-2"
               disabled={loading}
             >
-              {loading ? 'Processing...' : 'Sign In'}
+              {loading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Sign In')}
             </Button>
           </form>
 
-          {/* Decorative Divider */}
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border"></div>
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-3 text-muted-foreground font-medium">
-                Or continue with
-              </span>
-            </div>
-          </div>
+          {!isSignUp && (
+            <>
+              {/* Decorative Divider */}
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-3 text-muted-foreground font-medium">
+                    Or continue with
+                  </span>
+                </div>
+              </div>
 
-          {/* Social Provider Auth Container */}
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full h-11 rounded-xl font-semibold border-border bg-secondary/10 hover:bg-secondary/40 transition-all flex items-center justify-center gap-3"
-            onClick={handleGoogleLogin}
-            disabled={loading}
-          >
-            <Chrome className="h-5 w-5 text-foreground" />
-            <span>Sign in with Google</span>
-          </Button>
+              {/* Social Provider Auth Container */}
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-11 rounded-xl font-semibold border-border bg-secondary/10 hover:bg-secondary/40 transition-all flex items-center justify-center gap-3"
+                onClick={handleGoogleLogin}
+                disabled={loading}
+              >
+                <Chrome className="h-5 w-5 text-foreground" />
+                <span>Sign in with Google</span>
+              </Button>
+            </>
+          )}
 
           {/* Footer Navigation Link */}
           <p className="text-center text-sm text-muted-foreground">
-            Don't have an account?{' '}
-            <a href="#" className="text-primary font-medium hover:underline">
-              Create an account
-            </a>
+            {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+            <button 
+              type="button" 
+              onClick={() => setIsSignUp(!isSignUp)} 
+              className="text-primary font-medium hover:underline"
+            >
+              {isSignUp ? 'Sign in' : 'Create an account'}
+            </button>
           </p>
 
         </div>
