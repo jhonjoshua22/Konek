@@ -492,7 +492,34 @@ export default function PostCard({ post }: PostCardProps) {
                     <span className="font-semibold text-sm">{post.author.displayName}</span>
                     <span className="text-xs text-muted-foreground">@{post.author.username}</span>
                   </div>
+                  
+                  {/* Mood and Location in Modal */}
+                  {(post.mood || post.location) && (
+                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                      {post.mood && (
+                        <span className="flex items-center gap-1">
+                          <Smile className="h-3 w-3" /> {post.mood}
+                        </span>
+                      )}
+                      {post.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" /> {post.location}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   <p className="text-sm mt-1 text-foreground whitespace-pre-wrap">{post.content}</p>
+                  
+                  {post.image && (
+                    <div className="mt-3 overflow-hidden rounded-2xl border border-border">
+                      <img
+                        src={post.image}
+                        alt="Post attachment"
+                        className="w-full h-auto max-h-[400px] object-cover"
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
 
