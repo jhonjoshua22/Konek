@@ -98,9 +98,6 @@ export default function PostCard({ post }: PostCardProps) {
   }, [isCommentsModalOpen]);
 
   // Fetch Full Thread Comments
-  // Fetch Full Thread Comments
-  // Fetch Full Thread Comments
-  // Fetch Full Thread Comments
   const fetchCommentsList = async () => {
     try {
       setIsLoadingComments(true);
@@ -120,34 +117,21 @@ export default function PostCard({ post }: PostCardProps) {
         return;
       }
 
-      // 2. Fetch profiles and likes separately to avoid join issues
-      const commentIds = commentsData.map(c => c.id);
+      // 2. Fetch profiles separately
       const userIds = [...new Set(commentsData.map(c => c.user_id))];
 
-      const [profilesRes, likesRes] = await Promise.all([
-        supabase.from('profiles').select('id, username, display_name, avatar, is_verified').in('id', userIds),
-        supabase.from('comment_likes').select('comment_id, user_id').in('comment_id', commentIds)
-      ]);
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, username, display_name, avatar, is_verified')
+        .in('id', userIds);
 
-      const profilesMap = (profilesRes.data || []).reduce((acc: any, p: any) => ({ ...acc, [p.id]: p }), {});
+      const profilesMap = (profilesData || []).reduce((acc: any, p: any) => ({ ...acc, [p.id]: p }), {});
       
-      // Group likes by comment_id
-      const likesMap = (likesRes.data || []).reduce((acc: any, like: any) => {
-        if (!acc[like.comment_id]) acc[like.comment_id] = [];
-        acc[like.comment_id].push(like.user_id);
-        return acc;
-      }, {});
-
       // 3. Merge data
-      const processedComments = commentsData.map((comment: any) => {
-        const commentLikes = likesMap[comment.id] || [];
-        return {
-          ...comment,
-          profiles: profilesMap[comment.user_id] || { display_name: 'User', username: 'user' },
-          likesCount: commentLikes.length,
-          isLiked: currentUserId ? commentLikes.includes(currentUserId) : false
-        };
-      });
+      const processedComments = commentsData.map((comment: any) => ({
+        ...comment,
+        profiles: profilesMap[comment.user_id] || { display_name: 'User', username: 'user' }
+      }));
 
       setCommentsList(processedComments);
     } catch (err) {
@@ -194,39 +178,6 @@ export default function PostCard({ post }: PostCardProps) {
       setCommentsList((prev) => prev.filter((c) => c.id !== commentId));
     } catch (err) {
       console.error('Error removing comment execution:', err);
-    }
-  };
-
-  const handleLikeComment = async (commentId: string, currentlyLiked: boolean) => {
-    if (!currentUserId) return;
-
-    setCommentsList((prev) =>
-      prev.map((c) => {
-        if (c.id === commentId) {
-          return {
-            ...c,
-            isLiked: !currentlyLiked,
-            likesCount: currentlyLiked ? c.likesCount - 1 : c.likesCount + 1
-          };
-        }
-        return c;
-      })
-    );
-
-    try {
-      if (!currentlyLiked) {
-        await supabase
-          .from('comment_likes')
-          .insert({ comment_id: commentId, user_id: currentUserId });
-      } else {
-        await supabase
-          .from('comment_likes')
-          .delete()
-          .eq('comment_id', commentId)
-          .eq('user_id', currentUserId);
-      }
-    } catch (err) {
-      console.error('Error syncing comment like transaction:', err);
     }
   };
 
@@ -583,17 +534,6 @@ export default function PostCard({ post }: PostCardProps) {
                           </div>
 
                           <div className="flex items-center gap-4 mt-1 ml-2 text-xs text-muted-foreground">
-                            <button
-                              onClick={() => handleLikeComment(comment.id, comment.isLiked)}
-                              className={cn(
-                                "flex items-center gap-1 hover:text-red-500 transition-colors",
-                                comment.isLiked && "text-red-500 font-medium"
-                              )}
-                            >
-                              <Heart className={cn("h-3.5 w-3.5", comment.isLiked && "fill-current")} />
-                              <span>{comment.likesCount > 0 ? comment.likesCount : 'Like'}</span>
-                            </button>
-
                             <button
                               onClick={() => setNewCommentText(`Reply @${commentAuthor.username} `)}
                               className="flex items-center gap-1 hover:text-primary transition-colors"
