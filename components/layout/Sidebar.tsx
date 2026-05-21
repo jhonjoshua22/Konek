@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/router';
+import { useState, useEffect } from 'react';
 import { Home, Search, MessageCircle, User, Feather, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { currentUser } from '@/lib/mock-data';
 import { supabase } from '@/lib/supabase';
 
 const navItems = [
@@ -18,6 +18,32 @@ const navItems = [
 
 export default function Sidebar() {
   const router = useRouter();
+  const [profile, setProfile] = useState<any>(null);
+
+  useEffect(() => {
+    async function loadSidebarUser() {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const user = sessionData?.session?.user;
+
+        if (user) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('username, display_name, avatar')
+            .eq('id', user.id)
+            .single();
+
+          if (profileData) {
+            setProfile(profileData);
+          }
+        }
+      } catch (error) {
+        console.error('Error rendering sidebar identity data:', error);
+      }
+    }
+
+    loadSidebarUser();
+  }, []);
 
   const handleSignOut = async () => {
     try {
@@ -29,6 +55,12 @@ export default function Sidebar() {
     } catch (error: any) {
       console.error('Error logging out:', error.message);
     }
+  };
+
+  const currentProfile = profile || {
+    display_name: 'Konek User',
+    username: 'user',
+    avatar: '',
   };
 
   return (
@@ -75,12 +107,12 @@ export default function Sidebar() {
       <div className="mt-4 flex flex-col gap-2 rounded-xl p-3 border border-border/40 bg-card/10">
         <div className="flex items-center gap-3 cursor-pointer">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={currentUser.avatar} alt={currentUser.displayName} />
-            <AvatarFallback>{currentUser.displayName[0]}</AvatarFallback>
+            <AvatarImage src={currentProfile.avatar} alt={currentProfile.display_name} />
+            <AvatarFallback>{currentProfile.display_name[0]}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-foreground truncate">{currentUser.displayName}</p>
-            <p className="text-sm text-muted-foreground truncate">@{currentUser.username}</p>
+            <p className="font-semibold text-foreground truncate">{currentProfile.display_name}</p>
+            <p className="text-sm text-muted-foreground truncate">@{currentProfile.username}</p>
           </div>
         </div>
         

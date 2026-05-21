@@ -1,13 +1,45 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, BadgeCheck } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { mockTrendingTopics, suggestedAccounts, formatNumber } from '@/lib/mock-data';
-import { BadgeCheck } from 'lucide-react';
+import { mockTrendingTopics, formatNumber } from '@/lib/mock-data';
+import { supabase } from '@/lib/supabase';
 
 export default function RightSidebar() {
+  const [accounts, setAccounts] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadSuggestedAccounts() {
+      try {
+        // Fetch current session user to exclude them from suggestions
+        const { data: sessionData } = await supabase.auth.getSession();
+        const user = sessionData?.session?.user;
+
+        let query = supabase
+          .from('profiles')
+          .select('id, username, display_name, avatar, is_verified');
+
+        if (user) {
+          query = query.neq('id', user.id);
+        }
+
+        // Fetch a default maximum subset limit matching your layout sizing rules
+        const { data: profilesData } = await query.limit(3);
+
+        if (profilesData) {
+          setAccounts(profilesData);
+        }
+      } catch (error) {
+        console.error('Error rendering suggested follow targets:', error);
+      }
+    }
+
+    loadSuggestedAccounts();
+  }, []);
+
   return (
     <aside className="hidden xl:flex xl:flex-col xl:fixed xl:right-0 xl:top-0 xl:h-screen xl:w-80 xl:border-l xl:border-border xl:bg-sidebar xl:p-4 xl:overflow-y-auto">
       {/* Search */}
@@ -45,19 +77,19 @@ export default function RightSidebar() {
       <div className="mt-4 rounded-2xl bg-card p-4">
         <h2 className="text-xl font-bold text-foreground mb-4">Who to follow</h2>
         <ul className="space-y-4">
-          {suggestedAccounts.map((user) => (
+          {accounts.map((user) => (
             <li
               key={user.id}
               className="flex items-center gap-3"
             >
               <Avatar className="h-10 w-10">
-                <AvatarImage src={user.avatar} alt={user.displayName} />
-                <AvatarFallback>{user.displayName[0]}</AvatarFallback>
+                <AvatarImage src={user.avatar} alt={user.display_name} />
+                <AvatarFallback>{user.display_name?.[0] || 'U'}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="font-semibold text-foreground truncate flex items-center gap-1">
-                  {user.displayName}
-                  {user.isVerified && (
+                  {user.display_name}
+                  {user.is_verified && (
                     <BadgeCheck className="h-4 w-4 text-primary" />
                   )}
                 </p>

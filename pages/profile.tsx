@@ -94,7 +94,7 @@ export default function ProfilePage() {
           .select(`
             post:posts (
               id, content, image, created_at,
-              author:profiles (id, username, display_name, avatar, is_verified, bio, cover_image),
+              author:profiles (id, username, display_name, avatar, is_verified, bio, cover_image, location, website, created_at),
               likes (user_id), bookmarks (user_id)
             )
           `)
@@ -163,8 +163,16 @@ export default function ProfilePage() {
     username: 'user',
     avatar: '',
     bio: '',
-    cover_image: ''
+    cover_image: '',
+    location: '',
+    website: '',
+    created_at: new Date().toISOString()
   };
+
+  const joinedDate = new Date(currentProfile.created_at).toLocaleDateString(undefined, {
+    month: 'long',
+    year: 'numeric'
+  });
 
   return (
     <>
@@ -239,19 +247,28 @@ export default function ProfilePage() {
 
           {/* Meta Info */}
           <div className="flex flex-wrap items-center gap-4 mt-4 text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <MapPin className="h-4 w-4" />
-              San Francisco, CA
-            </span>
-            <span className="flex items-center gap-1">
-              <LinkIcon className="h-4 w-4" />
-              <a href="#" className="text-primary hover:underline">
-                konek.dev/{currentProfile.username}
-              </a>
-            </span>
+            {currentProfile.location && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-4 w-4" />
+                {currentProfile.location}
+              </span>
+            )}
+            {currentProfile.website && (
+              <span className="flex items-center gap-1">
+                <LinkIcon className="h-4 w-4" />
+                <a 
+                  href={currentProfile.website.startsWith('http') ? currentProfile.website : `https://${currentProfile.website}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-primary hover:underline"
+                >
+                  {currentProfile.website.replace(/(^\w+:|^)\/\//, '')}
+                </a>
+              </span>
+            )}
             <span className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              Joined Recently
+              Joined {joinedDate}
             </span>
           </div>
 
