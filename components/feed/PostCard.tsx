@@ -90,19 +90,18 @@ export default function PostCard({ post }: PostCardProps) {
     fetchEngagements();
   }, [post.id, currentUserId]);
 
-  // Re-run comments processing if comments modal is open and user state updates asynchronously
+  // FIXED: Re-run comments processing when the modal opens
   useEffect(() => {
-    if (isCommentsModalOpen && currentUserId) {
+    if (isCommentsModalOpen) {
       fetchCommentsList();
     }
-  }, [currentUserId]);
+  }, [isCommentsModalOpen]);
 
-  // Fetch Full Thread Comments when modal opens
+  // Fetch Full Thread Comments
   const fetchCommentsList = async () => {
     try {
       setIsLoadingComments(true);
       
-      // Select comment info along with profile details and liked list
       const { data, error } = await supabase
         .from('comments')
         .select(`
@@ -118,7 +117,6 @@ export default function PostCard({ post }: PostCardProps) {
 
       if (error) throw error;
 
-      // Transform data payload to evaluate if current user has liked specific items
       const processedComments = (data || []).map((comment: any) => {
         const userLikes = comment.comment_likes || [];
         const commentLikesCount = userLikes.length;
@@ -143,7 +141,6 @@ export default function PostCard({ post }: PostCardProps) {
 
   const handleCardClick = () => {
     setIsCommentsModalOpen(true);
-    fetchCommentsList();
   };
 
   const handleDeletePost = async (e: React.MouseEvent) => {
@@ -185,7 +182,6 @@ export default function PostCard({ post }: PostCardProps) {
   const handleLikeComment = async (commentId: string, currentlyLiked: boolean) => {
     if (!currentUserId) return;
 
-    // Optimistic localized UI updates inside state arrays
     setCommentsList((prev) =>
       prev.map((c) => {
         if (c.id === commentId) {
@@ -217,9 +213,8 @@ export default function PostCard({ post }: PostCardProps) {
   };
 
   const handleLike = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Stop click bubbling up to parent article card container
+    e.stopPropagation(); 
     
-    // Optimistic UI updates
     const nextLikedState = !isLiked;
     setIsLiked(nextLikedState);
     setLikes(nextLikedState ? likes + 1 : likes - 1);
@@ -228,12 +223,10 @@ export default function PostCard({ post }: PostCardProps) {
       if (!currentUserId) return;
 
       if (nextLikedState) {
-        // Insert record to likes table
         await supabase
           .from('likes')
           .insert({ post_id: post.id, user_id: currentUserId });
       } else {
-        // Remove record from likes table
         await supabase
           .from('likes')
           .delete()
@@ -246,9 +239,8 @@ export default function PostCard({ post }: PostCardProps) {
   };
 
   const handleBookmark = async (e: React.MouseEvent) => {
-    e.stopPropagation(); // Stop click bubbling up to parent article card container
+    e.stopPropagation(); 
     
-    // Optimistic UI updates
     const nextBookmarkState = !isBookmarked;
     setIsBookmarked(nextBookmarkState);
 
@@ -256,12 +248,10 @@ export default function PostCard({ post }: PostCardProps) {
       if (!currentUserId) return;
 
       if (nextBookmarkState) {
-        // Insert record to bookmarks table
         await supabase
           .from('bookmarks')
           .insert({ post_id: post.id, user_id: currentUserId });
       } else {
-        // Remove record from bookmarks table
         await supabase
           .from('bookmarks')
           .delete()
@@ -275,7 +265,7 @@ export default function PostCard({ post }: PostCardProps) {
 
   const handleCommentClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    handleCardClick();
+    setIsCommentsModalOpen(true);
   };
 
   const handleSubmitComment = async (e: React.FormEvent) => {
@@ -298,7 +288,7 @@ export default function PostCard({ post }: PostCardProps) {
       
       setNewCommentText('');
       setCommentsCount((prev) => prev + 1);
-      await fetchCommentsList(); // Refresh matching lists
+      await fetchCommentsList();
     } catch (error) {
       console.error('Error adding comment to Supabase:', error);
     } finally {
@@ -377,7 +367,6 @@ export default function PostCard({ post }: PostCardProps) {
             <AvatarFallback>{post.author.displayName?.[0] || 'U'}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            {/* Author Info */}
             <div className="flex items-center justify-between gap-1 flex-wrap">
               <div className="flex items-center gap-1 flex-wrap">
                 <span className="font-semibold text-foreground hover:underline">
@@ -391,7 +380,6 @@ export default function PostCard({ post }: PostCardProps) {
                 <span className="text-muted-foreground hover:underline">{post.createdAt}</span>
               </div>
               
-              {/* Delete Main Post option if owned */}
               {currentUserId === post.author.id && (
                 <button
                   onClick={handleDeletePost}
@@ -403,10 +391,8 @@ export default function PostCard({ post }: PostCardProps) {
               )}
             </div>
 
-            {/* Content */}
             <p className="mt-2 text-foreground whitespace-pre-wrap">{post.content}</p>
 
-            {/* Image */}
             {post.image && (
               <div className="mt-3 overflow-hidden rounded-2xl border border-border">
                 <img
@@ -417,7 +403,6 @@ export default function PostCard({ post }: PostCardProps) {
               </div>
             )}
 
-            {/* Actions */}
             <div className="mt-3 flex items-center justify-between max-w-md">
               <button 
                 onClick={handleCommentClick}
@@ -479,7 +464,6 @@ export default function PostCard({ post }: PostCardProps) {
         </div>
       </article>
 
-      {/* Dynamic Comments & Thread Modal Overlay */}
       {isCommentsModalOpen && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm"
@@ -489,7 +473,6 @@ export default function PostCard({ post }: PostCardProps) {
             className="w-full max-w-xl overflow-hidden rounded-2xl border border-border bg-background shadow-lg flex flex-col max-h-[85vh] animate-in fade-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <h3 className="text-lg font-bold text-foreground">Post Thread</h3>
               <div className="flex items-center gap-1">
@@ -511,9 +494,7 @@ export default function PostCard({ post }: PostCardProps) {
               </div>
             </div>
 
-            {/* Modal Body Container */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* Original Post Context */}
               <div className="flex gap-3 pb-4 border-b border-border">
                 <Avatar className="h-10 w-10 flex-shrink-0">
                   <AvatarImage src={post.author.avatar || undefined} />
@@ -528,12 +509,10 @@ export default function PostCard({ post }: PostCardProps) {
                 </div>
               </div>
 
-              {/* Replies Title Heading */}
               <div className="text-xs font-bold text-muted-foreground tracking-wider uppercase">
                 Replies ({commentsCount})
               </div>
 
-              {/* Loader */}
               {isLoadingComments ? (
                 <div className="flex justify-center py-6">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -546,7 +525,6 @@ export default function PostCard({ post }: PostCardProps) {
                 <div className="space-y-4">
                   {commentsList.map((comment) => {
                     const commentAuthor = comment.profiles || {};
-                    // Authorization logic: comment owner OR post thread owner can delete
                     const canDeleteComment = currentUserId === comment.user_id || currentUserId === post.author.id;
 
                     return (
@@ -571,7 +549,6 @@ export default function PostCard({ post }: PostCardProps) {
                                 </span>
                               </div>
 
-                              {/* Comment Delete Options Trigger */}
                               {canDeleteComment && (
                                 <button
                                   onClick={() => handleDeleteComment(comment.id)}
@@ -587,9 +564,7 @@ export default function PostCard({ post }: PostCardProps) {
                             </p>
                           </div>
 
-                          {/* Action Row Under Comment Block */}
                           <div className="flex items-center gap-4 mt-1 ml-2 text-xs text-muted-foreground">
-                            {/* Like Comment Toggle */}
                             <button
                               onClick={() => handleLikeComment(comment.id, comment.isLiked)}
                               className={cn(
@@ -601,7 +576,6 @@ export default function PostCard({ post }: PostCardProps) {
                               <span>{comment.likesCount > 0 ? comment.likesCount : 'Like'}</span>
                             </button>
 
-                            {/* Reply directly inside Thread field */}
                             <button
                               onClick={() => setNewCommentText(`Reply @${commentAuthor.username} `)}
                               className="flex items-center gap-1 hover:text-primary transition-colors"
@@ -618,7 +592,6 @@ export default function PostCard({ post }: PostCardProps) {
               )}
             </div>
 
-            {/* Modal Bottom Reply Input Bar Form */}
             <form onSubmit={handleSubmitComment} className="p-3 border-t border-border bg-background flex gap-2 items-center">
               <input
                 type="text"
