@@ -169,10 +169,18 @@ export default function ProfilePage() {
 
   const handleFileUpload = async (file: File, bucket: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
       const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage.from(bucket).upload(fileName, file);
+      const fileName = `${user.id}/${Math.random()}.${fileExt}`; // Path structure: userId/filename
+      
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, file, { upsert: true });
+
       if (uploadError) throw uploadError;
+
       const { data } = supabase.storage.from(bucket).getPublicUrl(fileName);
       return data.publicUrl;
     } catch (err) {
