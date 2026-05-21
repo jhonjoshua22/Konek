@@ -2,7 +2,6 @@ import Head from 'next/head';
 import { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
-  MoreHorizontal, 
   Calendar, 
   MapPin, 
   Link as LinkIcon, 
@@ -300,7 +299,7 @@ export default function ProfilePage() {
             <Avatar className="h-32 w-32 md:h-36 md:w-36 border-4 border-background">
               <AvatarImage src={currentProfile.avatar} alt={currentProfile.display_name} />
               <AvatarFallback className="text-4xl">
-                {currentProfile.display_name[0]}
+                {currentProfile.display_name?.[0] || 'U'}
               </AvatarFallback>
             </Avatar>
           </div>
