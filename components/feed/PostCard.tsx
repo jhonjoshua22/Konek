@@ -37,6 +37,8 @@ export default function PostCard({ post }: PostCardProps) {
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
   const [likes, setLikes] = useState(post.likes);
+  const [comments, setComments] = useState(post.comments);
+  const [shares, setShares] = useState(post.shares);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Stop click bubbling up to parent article card container
@@ -101,6 +103,85 @@ export default function PostCard({ post }: PostCardProps) {
     }
   };
 
+  const handleCommentClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    // Prompt placeholder mock fallback example to add comments to table row counter 
+    const commentText = prompt('Enter your reply:');
+    if (!commentText || !commentText.trim()) return;
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserId = sessionData?.session?.user?.id;
+      if (!currentUserId) return;
+
+      // Optimistic UI bump count tracking
+      setComments(comments + 1);
+
+      const { error } = await supabase
+        .from('comments')
+        .insert({
+          post_id: post.id,
+          user_id: currentUserId,
+          content: commentText.trim()
+        });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error adding comment to Supabase:', error);
+    }
+  };
+
+  const handleRepostClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserId = sessionData?.session?.user?.id;
+      if (!currentUserId) return;
+
+      // Optimistic state bump incrementor
+      setShares(shares + 1);
+
+      const { error } = await supabase
+        .from('reposts')
+        .insert({
+          post_id: post.id,
+          user_id: currentUserId
+        });
+
+      if (error) throw error;
+      alert('Post reposted successfully!');
+    } catch (error) {
+      console.error('Error adding repost transaction to backend:', error);
+    }
+  };
+
+  const handleShareClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    const shareUrl = `${window.location.origin}/post/${post.id}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Post by ${post.author.displayName}`,
+          text: post.content,
+          url: shareUrl,
+        });
+      } catch (error) {
+        console.error('Error utilizing Web Share API structure window:', error);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        alert('Post link copied to clipboard!');
+      } catch (err) {
+        console.error('Failed copying link context:', err);
+      }
+    }
+  };
+
   return (
     <article className="border-b border-border p-4 hover:bg-secondary/30 transition-colors cursor-pointer">
       <div className="flex gap-4">
@@ -138,18 +219,24 @@ export default function PostCard({ post }: PostCardProps) {
 
           {/* Actions */}
           <div className="mt-3 flex items-center justify-between max-w-md">
-            <button className="group flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
+            <button 
+              onClick={handleCommentClick}
+              className="group flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors"
+            >
               <div className="rounded-full p-2 group-hover:bg-primary/10 transition-colors">
                 <MessageCircle className="h-5 w-5" />
               </div>
-              <span className="text-sm">{formatNumber(post.comments)}</span>
+              <span className="text-sm">{formatNumber(comments)}</span>
             </button>
 
-            <button className="group flex items-center gap-2 text-muted-foreground hover:text-green-500 transition-colors">
+            <button 
+              onClick={handleRepostClick}
+              className="group flex items-center gap-2 text-muted-foreground hover:text-green-500 transition-colors"
+            >
               <div className="rounded-full p-2 group-hover:bg-green-500/10 transition-colors">
                 <Repeat2 className="h-5 w-5" />
               </div>
-              <span className="text-sm">{formatNumber(post.shares)}</span>
+              <span className="text-sm">{formatNumber(shares)}</span>
             </button>
 
             <button
@@ -178,7 +265,7 @@ export default function PostCard({ post }: PostCardProps) {
                 <Bookmark className={cn('h-5 w-5', isBookmarked && 'fill-current')} />
               </button>
               <button 
-                onClick={(e) => e.stopPropagation()} 
+                onClick={handleShareClick} 
                 className="rounded-full p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
               >
                 <Share className="h-5 w-5" />
