@@ -99,28 +99,46 @@ export default function PostCard({ post }: PostCardProps) {
 
   // Fetch Full Thread Comments
   // Fetch Full Thread Comments
+  // Fetch Full Thread Comments
   const fetchCommentsList = async () => {
     try {
       setIsLoadingComments(true);
       
-      const { data, error } = await supabase
+      // 1. Fetch comments for this post
+      const { data: commentsData, error: commentsError } = await supabase
         .from('comments')
         .select(`
           id,
           content,
           created_at,
           user_id,
-          profiles:user_id (id, username, display_name, avatar, is_verified),
           comment_likes(user_id)
         `)
         .eq('post_id', post.id)
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
+      if (commentsError) throw commentsError;
 
-      const processedComments = (data || []).map((comment: any) => {
-        // Ensure profile data is accessed correctly
-        const profile = Array.isArray(comment.profiles) ? comment.profiles[0] : comment.profiles;
+      if (!commentsData || commentsData.length === 0) {
+        setCommentsList([]);
+        setIsLoadingComments(false);
+        return;
+      }
+
+      // 2. Fetch unique user profiles for these comments
+      const userIds = [...new Set(commentsData.map(c => c.user_id))];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, username, display_name, avatar, is_verified')
+        .in('id', userIds);
+
+      const profilesMap = (profilesData || []).reduce((acc: any, profile: any) => {
+        acc[profile.id] = profile;
+        return acc;
+      }, {});
+
+      // 3. Merge profiles with comments
+      const processedComments = commentsData.map((comment: any) => {
         const userLikes = comment.comment_likes || [];
         const commentLikesCount = userLikes.length;
         const hasLikedComment = currentUserId 
@@ -129,7 +147,7 @@ export default function PostCard({ post }: PostCardProps) {
 
         return {
           ...comment,
-          profiles: profile, // Use the resolved object
+          profiles: profilesMap[comment.user_id] || { display_name: 'User', username: 'user' },
           likesCount: commentLikesCount,
           isLiked: hasLikedComment
         };
