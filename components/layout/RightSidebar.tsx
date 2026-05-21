@@ -79,7 +79,7 @@ export default function RightSidebar() {
       {/* Footer */}
       <div className="mt-4 px-2 text-xs text-muted-foreground">
         <p>Terms of Service · Privacy Policy · Cookie Policy</p>
-        <p className="mt-1">© 2024 Chirp Inc.</p>
+        <p className="mt-1">© 2026 Konek Inc.</p>
       </div>
     </aside>
   );
