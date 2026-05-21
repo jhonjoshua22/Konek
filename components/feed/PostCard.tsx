@@ -19,8 +19,8 @@ interface Post {
   shares: number;
   isLiked: boolean;
   isBookmarked: boolean;
-  mood?: string | null;
-  location?: string | null;
+  mood: string;
+  location: string;
   author: {
     id: string;
     username: string;
