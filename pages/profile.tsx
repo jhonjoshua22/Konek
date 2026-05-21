@@ -355,7 +355,7 @@ export default function ProfilePage() {
               </div>
               <input type="file" ref={coverInputRef} className="hidden" onChange={async (e) => {
                 if (e.target.files?.[0]) {
-                  const url = await handleFileUpload(e.target.files[0], 'covers');
+                  const url = await handleFileUpload(e.target.files[0], 'cover-photos');
                   if (url) setFormData(prev => ({ ...prev, coverImage: url }));
                 }
               }} />
