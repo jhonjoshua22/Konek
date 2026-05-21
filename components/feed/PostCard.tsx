@@ -106,17 +106,16 @@ export default function PostCard({ post }: PostCardProps) {
   const handleCommentClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     
-    // Prompt placeholder mock fallback example to add comments to table row counter 
     const commentText = prompt('Enter your reply:');
     if (!commentText || !commentText.trim()) return;
+
+    // Optimistic UI bump count tracking
+    setComments(comments + 1);
 
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const currentUserId = sessionData?.session?.user?.id;
       if (!currentUserId) return;
-
-      // Optimistic UI bump count tracking
-      setComments(comments + 1);
 
       const { error } = await supabase
         .from('comments')
@@ -129,19 +128,21 @@ export default function PostCard({ post }: PostCardProps) {
       if (error) throw error;
     } catch (error) {
       console.error('Error adding comment to Supabase:', error);
+      // Revert optimistic count if writing fails
+      setComments(comments);
     }
   };
 
   const handleRepostClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
 
+    // Optimistic state bump incrementor
+    setShares(shares + 1);
+
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       const currentUserId = sessionData?.session?.user?.id;
       if (!currentUserId) return;
-
-      // Optimistic state bump incrementor
-      setShares(shares + 1);
 
       const { error } = await supabase
         .from('reposts')
@@ -151,9 +152,10 @@ export default function PostCard({ post }: PostCardProps) {
         });
 
       if (error) throw error;
-      alert('Post reposted successfully!');
     } catch (error) {
       console.error('Error adding repost transaction to backend:', error);
+      // Revert optimistic count if writing fails
+      setShares(shares);
     }
   };
 
