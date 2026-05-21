@@ -4,7 +4,30 @@ import { useState } from 'react';
 import { Heart, MessageCircle, Repeat2, Bookmark, Share, BadgeCheck } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
-import { Post, formatNumber } from '@/lib/mock-data';
+import { formatNumber } from '@/lib/mock-data';
+import { supabase } from '@/lib/supabase';
+
+// Explicitly type the expected Post structure coming from your Supabase query
+interface Post {
+  id: string;
+  content: string;
+  image: string | null;
+  createdAt: string;
+  likes: number;
+  comments: number;
+  shares: number;
+  isLiked: boolean;
+  isBookmarked: boolean;
+  author: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatar: string | null;
+    bio: string | null;
+    coverImage: string | null;
+    isVerified: boolean;
+  };
+}
 
 interface PostCardProps {
   post: Post;
@@ -15,21 +38,75 @@ export default function PostCard({ post }: PostCardProps) {
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
   const [likes, setLikes] = useState(post.likes);
 
-  const handleLike = () => {
-    setIsLiked(!isLiked);
-    setLikes(isLiked ? likes - 1 : likes + 1);
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Stop click bubbling up to parent article card container
+    
+    // Optimistic UI updates
+    const nextLikedState = !isLiked;
+    setIsLiked(nextLikedState);
+    setLikes(nextLikedState ? likes + 1 : likes - 1);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserId = sessionData?.session?.user?.id;
+
+      if (!currentUserId) return;
+
+      if (nextLikedState) {
+        // Insert record to likes table
+        await supabase
+          .from('likes')
+          .insert({ post_id: post.id, user_id: currentUserId });
+      } else {
+        // Remove record from likes table
+        await supabase
+          .from('likes')
+          .delete()
+          .eq('post_id', post.id)
+          .eq('user_id', currentUserId);
+      }
+    } catch (error) {
+      console.error('Error synchronizing database like state:', error);
+    }
   };
 
-  const handleBookmark = () => {
-    setIsBookmarked(!isBookmarked);
+  const handleBookmark = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Stop click bubbling up to parent article card container
+    
+    // Optimistic UI updates
+    const nextBookmarkState = !isBookmarked;
+    setIsBookmarked(nextBookmarkState);
+
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserId = sessionData?.session?.user?.id;
+
+      if (!currentUserId) return;
+
+      if (nextBookmarkState) {
+        // Insert record to bookmarks table
+        await supabase
+          .from('bookmarks')
+          .insert({ post_id: post.id, user_id: currentUserId });
+      } else {
+        // Remove record from bookmarks table
+        await supabase
+          .from('bookmarks')
+          .delete()
+          .eq('post_id', post.id)
+          .eq('user_id', currentUserId);
+      }
+    } catch (error) {
+      console.error('Error synchronizing database bookmark state:', error);
+    }
   };
 
   return (
     <article className="border-b border-border p-4 hover:bg-secondary/30 transition-colors cursor-pointer">
       <div className="flex gap-4">
         <Avatar className="h-12 w-12 flex-shrink-0">
-          <AvatarImage src={post.author.avatar} alt={post.author.displayName} />
-          <AvatarFallback>{post.author.displayName[0]}</AvatarFallback>
+          <AvatarImage src={post.author.avatar || undefined} alt={post.author.displayName} />
+          <AvatarFallback>{post.author.displayName?.[0] || 'U'}</AvatarFallback>
         </Avatar>
         <div className="flex-1 min-w-0">
           {/* Author Info */}
@@ -100,7 +177,10 @@ export default function PostCard({ post }: PostCardProps) {
               >
                 <Bookmark className={cn('h-5 w-5', isBookmarked && 'fill-current')} />
               </button>
-              <button className="rounded-full p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
+              <button 
+                onClick={(e) => e.stopPropagation()} 
+                className="rounded-full p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              >
                 <Share className="h-5 w-5" />
               </button>
             </div>
