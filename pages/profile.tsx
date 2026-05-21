@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatNumber } from '@/lib/mock-data';
 import PostCard from '@/components/feed/PostCard';
+import CreatePost from '@/components/feed/CreatePost';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
@@ -173,7 +174,7 @@ export default function ProfilePage() {
       if (!user) throw new Error("No user found");
 
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}/${Math.random()}.${fileExt}`; // Path structure: userId/filename
+      const fileName = `${user.id}/${Math.random()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from(bucket)
@@ -327,7 +328,12 @@ export default function ProfilePage() {
         </div>
 
         <div>
-          {activeTab === 'posts' && <div>{posts.length === 0 ? <div className="p-8 text-center text-muted-foreground">No posts yet</div> : posts.map((post) => <PostCard key={post.id} post={post} />)}</div>}
+          {activeTab === 'posts' && (
+            <div>
+              <CreatePost onPostCreated={loadProfileData} userAvatar={currentProfile.avatar} />
+              {posts.length === 0 ? <div className="p-8 text-center text-muted-foreground">No posts yet</div> : posts.map((post) => <PostCard key={post.id} post={post} />)}
+            </div>
+          )}
           {activeTab === 'replies' && <div className="p-8 text-center"><p className="text-muted-foreground">No replies yet</p></div>}
           {activeTab === 'likes' && <div>{likedPosts.length === 0 ? <div className="p-8 text-center text-muted-foreground">No liked posts yet</div> : likedPosts.map((post) => <PostCard key={post.id} post={post} />)}</div>}
           {activeTab === 'bookmarks' && <div>{bookmarkedPosts.length === 0 ? <div className="p-8 text-center text-muted-foreground">No bookmarks yet</div> : bookmarkedPosts.map((post) => <PostCard key={post.id} post={post} />)}</div>}
