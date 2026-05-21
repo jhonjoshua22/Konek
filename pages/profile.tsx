@@ -10,6 +10,7 @@ import {
   Grid3X3,
   MessageSquare,
   Heart,
+  Bookmark,
   Loader2,
   X
 } from 'lucide-react';
@@ -21,13 +22,14 @@ import PostCard from '@/components/feed/PostCard';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 
-type TabType = 'posts' | 'replies' | 'likes';
+type TabType = 'posts' | 'replies' | 'likes' | 'bookmarks';
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<TabType>('posts');
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [likedPosts, setLikedPosts] = useState<any[]>([]);
+  const [bookmarkedPosts, setBookmarkedPosts] = useState<any[]>([]);
   const [stats, setStats] = useState({ followers: 0, following: 0, postsCount: 0 });
   const [loading, setLoading] = useState(true);
 
@@ -47,6 +49,7 @@ export default function ProfilePage() {
     { id: 'posts', label: 'Posts', icon: Grid3X3 },
     { id: 'replies', label: 'Replies', icon: MessageSquare },
     { id: 'likes', label: 'Likes', icon: Heart },
+    { id: 'bookmarks', label: 'Bookmarks', icon: Bookmark },
   ];
 
   async function loadProfileData() {
@@ -127,6 +130,25 @@ export default function ProfilePage() {
           .filter((item: any) => item.post !== null)
           .map((item: any) => formatPostRow(item.post, item.post.author, user.id));
         setLikedPosts(cleanLikedPosts);
+      }
+
+      // 6. Fetch posts the user bookmarked
+      const { data: bookmarkedData } = await supabase
+        .from('bookmarks')
+        .select(`
+          post:posts (
+            id, content, image, created_at,
+            author:profiles (id, username, display_name, avatar, is_verified, bio, cover_image, location, website, created_at),
+            likes (user_id), bookmarks (user_id)
+          )
+        `)
+        .eq('user_id', user.id);
+
+      if (bookmarkedData) {
+        const cleanBookmarkedPosts = bookmarkedData
+          .filter((item: any) => item.post !== null)
+          .map((item: any) => formatPostRow(item.post, item.post.author, user.id));
+        setBookmarkedPosts(cleanBookmarkedPosts);
       }
 
     } catch (error: any) {
@@ -394,6 +416,17 @@ export default function ProfilePage() {
                 <div className="p-8 text-center text-muted-foreground">No liked posts yet</div>
               ) : (
                 likedPosts.map((post) => (
+                  <PostCard key={post.id} post={post} />
+                ))
+              )}
+            </div>
+          )}
+          {activeTab === 'bookmarks' && (
+            <div>
+              {bookmarkedPosts.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">No bookmarked posts yet</div>
+              ) : (
+                bookmarkedPosts.map((post) => (
                   <PostCard key={post.id} post={post} />
                 ))
               )}
