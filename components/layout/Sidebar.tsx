@@ -60,7 +60,7 @@ export default function Sidebar() {
                   <item.icon className={cn('h-6 w-6', isActive && 'text-primary')} />
                   {item.label}
                 </Link>
-              </td>
+              </li>
             );
           })}
         </ul>
