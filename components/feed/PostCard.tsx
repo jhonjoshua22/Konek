@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Repeat2, Bookmark, Share, BadgeCheck, X, Send, Loader2, Trash2, CornerDownRight } from 'lucide-react';
+import { Heart, MessageCircle, Repeat2, Bookmark, Share, BadgeCheck, X, Send, Loader2, Trash2, CornerDownRight, Smile, MapPin } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -19,6 +19,8 @@ interface Post {
   shares: number;
   isLiked: boolean;
   isBookmarked: boolean;
+  mood?: string | null;
+  location?: string | null;
   author: {
     id: string;
     username: string;
@@ -359,6 +361,22 @@ export default function PostCard({ post }: PostCardProps) {
                 </button>
               )}
             </div>
+
+            {/* Display Mood and Location */}
+            {(post.mood || post.location) && (
+              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                {post.mood && (
+                  <span className="flex items-center gap-1">
+                    <Smile className="h-3 w-3" /> {post.mood}
+                  </span>
+                )}
+                {post.location && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> {post.location}
+                  </span>
+                )}
+              </div>
+            )}
 
             <p className="mt-2 text-foreground whitespace-pre-wrap">{post.content}</p>
 
