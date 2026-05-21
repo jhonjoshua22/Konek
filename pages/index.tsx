@@ -1,3 +1,5 @@
+'use client';
+
 import Head from 'next/head';
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
@@ -9,91 +11,91 @@ export default function HomePage() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function fetchFeedPosts() {
-      try {
-        setLoading(true);
+  async function fetchFeedPosts() {
+    try {
+      setLoading(true);
 
-        // Get current authenticated user session to check dynamic like/bookmark states
-        const { data: sessionData } = await supabase.auth.getSession();
-        const currentUserId = sessionData?.session?.user?.id;
+      // Get current authenticated user session to check dynamic like/bookmark states
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserId = sessionData?.session?.user?.id;
 
-        // Fetch posts joined with author profiles, likes list, and bookmarks list
-        const { data, error } = await supabase
-          .from('posts')
-          .select(`
+      // Fetch posts joined with author profiles, likes list, and bookmarks list
+      const { data, error } = await supabase
+        .from('posts')
+        .select(`
+          id,
+          content,
+          image,
+          created_at,
+          author:profiles (
             id,
-            content,
-            image,
-            created_at,
-            author:profiles (
-              id,
-              username,
-              display_name,
-              avatar,
-              bio,
-              cover_image,
-              is_verified
-            ),
-            likes (user_id),
-            bookmarks (user_id)
-          `)
-          .order('created_at', { ascending: false });
+            username,
+            display_name,
+            avatar,
+            bio,
+            cover_image,
+            is_verified
+          ),
+          likes (user_id),
+          bookmarks (user_id)
+        `)
+        .order('created_at', { ascending: false });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        if (data) {
-          // Format rows into the standard Post object structure expected by PostCard
-          const formattedPosts = data.map((post: any) => {
-            const totalLikes = post.likes?.length || 0;
-            const isLiked = currentUserId 
-              ? post.likes?.some((like: any) => like.user_id === currentUserId) 
-              : false;
-            const isBookmarked = currentUserId 
-              ? post.bookmarks?.some((bookmark: any) => bookmark.user_id === currentUserId) 
-              : false;
+      if (data) {
+        // Format rows into the standard Post object structure expected by PostCard
+        const formattedPosts = data.map((post: any) => {
+          const totalLikes = post.likes?.length || 0;
+          const isLiked = currentUserId 
+            ? post.likes?.some((like: any) => like.user_id === currentUserId) 
+            : false;
+          const isBookmarked = currentUserId 
+            ? post.bookmarks?.some((bookmark: any) => bookmark.user_id === currentUserId) 
+            : false;
 
-            // Simple relative time string generation or fallback to locale date
-            const postDate = new Date(post.created_at);
-            const timeAgo = postDate.toLocaleDateString(undefined, { 
-              month: 'short', 
-              day: 'numeric' 
-            });
-
-            return {
-              id: post.id,
-              content: post.content,
-              image: post.image,
-              createdAt: timeAgo,
-              likes: totalLikes,
-              comments: 0, // Hook up via a comments/replies table later
-              shares: 0,
-              isLiked: isLiked,
-              isBookmarked: isBookmarked,
-              author: {
-                id: post.author?.id,
-                username: post.author?.username,
-                displayName: post.author?.display_name,
-                avatar: post.author?.avatar,
-                bio: post.author?.bio,
-                coverImage: post.author?.cover_image,
-                isVerified: post.author?.is_verified,
-                followers: 0,
-                following: 0,
-                postsCount: 0
-              }
-            };
+          // Simple relative time string generation or fallback to locale date
+          const postDate = new Date(post.created_at);
+          const timeAgo = postDate.toLocaleDateString(undefined, { 
+            month: 'short', 
+            day: 'numeric' 
           });
 
-          setPosts(formattedPosts);
-        }
-      } catch (error: any) {
-        console.error('Error loading feed posts:', error.message);
-      } finally {
-        setLoading(false);
-      }
-    }
+          return {
+            id: post.id,
+            content: post.content,
+            image: post.image,
+            createdAt: timeAgo,
+            likes: totalLikes,
+            comments: 0, // Hook up via a comments/replies table later
+            shares: 0,
+            isLiked: isLiked,
+            isBookmarked: isBookmarked,
+            author: {
+              id: post.author?.id,
+              username: post.author?.username,
+              displayName: post.author?.display_name,
+              avatar: post.author?.avatar,
+              bio: post.author?.bio,
+              coverImage: post.author?.cover_image,
+              isVerified: post.author?.is_verified,
+              followers: 0,
+              following: 0,
+              postsCount: 0
+            }
+          };
+        });
 
+        setPosts(formattedPosts);
+      }
+    } catch (error: any) {
+      console.error('Error loading feed posts:', error.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
     fetchFeedPosts();
   }, []);
 
@@ -122,7 +124,7 @@ export default function HomePage() {
         </header>
 
         {/* Create Post */}
-        <CreatePost />
+        <CreatePost onPostCreated={fetchFeedPosts} />
 
         {/* Feed */}
         <div>
