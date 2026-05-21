@@ -339,16 +339,34 @@ export default function PostCard({ post }: PostCardProps) {
           </Avatar>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-1 flex-wrap">
-              <div className="flex items-center gap-1 flex-wrap">
-                <span className="font-semibold text-foreground hover:underline">
-                  {post.author.displayName}
-                </span>
-                {post.author.isVerified && (
-                  <BadgeCheck className="h-4 w-4 text-primary" />
+              <div className="flex flex-col">
+                <div className="flex items-center gap-1 flex-wrap">
+                  <span className="font-semibold text-foreground hover:underline">
+                    {post.author.displayName}
+                  </span>
+                  {post.author.isVerified && (
+                    <BadgeCheck className="h-4 w-4 text-primary" />
+                  )}
+                  <span className="text-muted-foreground">@{post.author.username}</span>
+                  <span className="text-muted-foreground">·</span>
+                  <span className="text-muted-foreground hover:underline">{post.createdAt}</span>
+                </div>
+                
+                {/* Display Mood and Location below Name/Username */}
+                {(post.mood || post.location) && (
+                  <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+                    {post.mood && (
+                      <span className="flex items-center gap-1">
+                        <Smile className="h-3 w-3" /> {post.mood}
+                      </span>
+                    )}
+                    {post.location && (
+                      <span className="flex items-center gap-1">
+                        <MapPin className="h-3 w-3" /> {post.location}
+                      </span>
+                    )}
+                  </div>
                 )}
-                <span className="text-muted-foreground">@{post.author.username}</span>
-                <span className="text-muted-foreground">·</span>
-                <span className="text-muted-foreground hover:underline">{post.createdAt}</span>
               </div>
               
               {currentUserId === post.author.id && (
@@ -361,22 +379,6 @@ export default function PostCard({ post }: PostCardProps) {
                 </button>
               )}
             </div>
-
-            {/* Display Mood and Location */}
-            {(post.mood || post.location) && (
-              <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                {post.mood && (
-                  <span className="flex items-center gap-1">
-                    <Smile className="h-3 w-3" /> {post.mood}
-                  </span>
-                )}
-                {post.location && (
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> {post.location}
-                  </span>
-                )}
-              </div>
-            )}
 
             <p className="mt-2 text-foreground whitespace-pre-wrap">{post.content}</p>
 
@@ -488,26 +490,27 @@ export default function PostCard({ post }: PostCardProps) {
                   <AvatarFallback>{post.author.displayName?.[0]}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1">
-                    <span className="font-semibold text-sm">{post.author.displayName}</span>
-                    <span className="text-xs text-muted-foreground">@{post.author.username}</span>
-                  </div>
-                  
-                  {/* Mood and Location in Modal */}
-                  {(post.mood || post.location) && (
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                      {post.mood && (
-                        <span className="flex items-center gap-1">
-                          <Smile className="h-3 w-3" /> {post.mood}
-                        </span>
-                      )}
-                      {post.location && (
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3" /> {post.location}
-                        </span>
-                      )}
+                  <div className="flex flex-col">
+                    <div className="flex items-center gap-1">
+                      <span className="font-semibold text-sm">{post.author.displayName}</span>
+                      <span className="text-xs text-muted-foreground">@{post.author.username}</span>
                     </div>
-                  )}
+                    
+                    {(post.mood || post.location) && (
+                      <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground">
+                        {post.mood && (
+                          <span className="flex items-center gap-1">
+                            <Smile className="h-3 w-3" /> {post.mood}
+                          </span>
+                        )}
+                        {post.location && (
+                          <span className="flex items-center gap-1">
+                            <MapPin className="h-3 w-3" /> {post.location}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
 
                   <p className="text-sm mt-1 text-foreground whitespace-pre-wrap">{post.content}</p>
                   
