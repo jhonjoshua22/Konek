@@ -7,7 +7,7 @@ export default function HomePage() {
   return (
     <>
       <Head>
-        <title>Home / Chirp</title>
+        <title>Home / Konek</title>
         <meta name="description" content="See what's happening in your world right now." />
       </Head>
 

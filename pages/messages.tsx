@@ -28,7 +28,7 @@ export default function MessagesPage() {
   return (
     <>
       <Head>
-        <title>Messages / Chirp</title>
+        <title>Messages / Konek</title>
         <meta name="description" content="Your direct messages." />
       </Head>
 

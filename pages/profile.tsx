@@ -35,7 +35,7 @@ export default function ProfilePage() {
   return (
     <>
       <Head>
-        <title>{currentUser.displayName} (@{currentUser.username}) / Chirp</title>
+        <title>{currentUser.displayName} (@{currentUser.username}) / Konek</title>
         <meta name="description" content={currentUser.bio} />
       </Head>
 
@@ -110,7 +110,7 @@ export default function ProfilePage() {
             <span className="flex items-center gap-1">
               <LinkIcon className="h-4 w-4" />
               <a href="#" className="text-primary hover:underline">
-                chirp.dev/alexchen
+                konek.dev/joshuaabutan
               </a>
             </span>
             <span className="flex items-center gap-1">

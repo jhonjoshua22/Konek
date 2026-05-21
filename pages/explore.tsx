@@ -14,7 +14,7 @@ export default function ExplorePage() {
   return (
     <>
       <Head>
-        <title>Explore / Chirp</title>
+        <title>Explore / Konek</title>
         <meta name="description" content="Explore trending topics and discover new content." />
       </Head>
 

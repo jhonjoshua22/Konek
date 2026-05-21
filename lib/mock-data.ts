@@ -54,8 +54,8 @@ export interface TrendingTopic {
 export const mockUsers: User[] = [
   {
     id: '1',
-    username: 'alexchen',
-    displayName: 'Alex Chen',
+    username: '_jhonjoshua',
+    displayName: 'Jhon Joshua Abutan',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
     bio: 'Senior Software Engineer | Building the future of web | Open source enthusiast',
     coverImage: 'https://images.unsplash.com/photo-1557682250-33bd709cbe85?w=1200&h=400&fit=crop',
