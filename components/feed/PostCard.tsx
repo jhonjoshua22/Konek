@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Repeat2, Bookmark, Share, BadgeCheck, X, Send, Loader2 } from 'lucide-react';
+import { Heart, MessageCircle, Repeat2, Bookmark, Share, BadgeCheck, X, Send, Loader2, Trash2, CornerDownRight } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -35,11 +35,13 @@ interface PostCardProps {
 }
 
 export default function PostCard({ post }: PostCardProps) {
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isLiked, setIsLiked] = useState(post.isLiked);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
   const [likes, setLikes] = useState(post.likes);
   const [commentsCount, setCommentsCount] = useState(post.comments);
   const [shares, setShares] = useState(post.shares);
+  const [isDeleted, setIsDeleted] = useState(false);
 
   // Modal and Comments Tracking States
   const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false);
@@ -47,6 +49,17 @@ export default function PostCard({ post }: PostCardProps) {
   const [newCommentText, setNewCommentText] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+
+  // Get active session user info
+  useEffect(() => {
+    async function getUserSession() {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.user) {
+        setCurrentUserId(data.session.user.id);
+      }
+    }
+    getUserSession();
+  }, []);
 
   // Fetch real-time counts from DB when initialized
   useEffect(() => {
@@ -70,6 +83,8 @@ export default function PostCard({ post }: PostCardProps) {
   const fetchCommentsList = async () => {
     try {
       setIsLoadingComments(true);
+      
+      // Select comment info along with profile details and liked list
       const { data, error } = await supabase
         .from('comments')
         .select(`
@@ -77,13 +92,30 @@ export default function PostCard({ post }: PostCardProps) {
           content,
           created_at,
           user_id,
-          profiles:user_id (id, username, display_name, avatar, is_verified)
+          profiles:user_id (id, username, display_name, avatar, is_verified),
+          comment_likes(user_id)
         `)
         .eq('post_id', post.id)
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setCommentsList(data || []);
+
+      // Transform data payload to evaluate if current user has liked specific items
+      const processedComments = (data || []).map((comment: any) => {
+        const userLikes = comment.comment_likes || [];
+        const commentLikesCount = userLikes.length;
+        const hasLikedComment = currentUserId 
+          ? userLikes.some((like: any) => like.user_id === currentUserId)
+          : false;
+
+        return {
+          ...comment,
+          likesCount: commentLikesCount,
+          isLiked: hasLikedComment
+        };
+      });
+
+      setCommentsList(processedComments);
     } catch (err) {
       console.error('Error getting post replies:', err);
     } finally {
@@ -96,6 +128,76 @@ export default function PostCard({ post }: PostCardProps) {
     fetchCommentsList();
   };
 
+  const handleDeletePost = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!window.confirm('Are you sure you want to delete this post?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .delete()
+        .eq('id', post.id);
+
+      if (error) throw error;
+      setIsDeleted(true);
+      setIsCommentsModalOpen(false);
+    } catch (err) {
+      console.error('Error deleting post transaction:', err);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!window.confirm('Are you sure you want to delete this comment?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', commentId);
+
+      if (error) throw error;
+
+      setCommentsCount((prev) => Math.max(0, prev - 1));
+      setCommentsList((prev) => prev.filter((c) => c.id !== commentId));
+    } catch (err) {
+      console.error('Error removing comment execution:', err);
+    }
+  };
+
+  const handleLikeComment = async (commentId: string, currentlyLiked: boolean) => {
+    if (!currentUserId) return;
+
+    // Optimistic localized UI updates inside state arrays
+    setCommentsList((prev) =>
+      prev.map((c) => {
+        if (c.id === commentId) {
+          return {
+            ...c,
+            isLiked: !currentlyLiked,
+            likesCount: currentlyLiked ? c.likesCount - 1 : c.likesCount + 1
+          };
+        }
+        return c;
+      })
+    );
+
+    try {
+      if (!currentlyLiked) {
+        await supabase
+          .from('comment_likes')
+          .insert({ comment_id: commentId, user_id: currentUserId });
+      } else {
+        await supabase
+          .from('comment_likes')
+          .delete()
+          .eq('comment_id', commentId)
+          .eq('user_id', currentUserId);
+      }
+    } catch (err) {
+      console.error('Error syncing comment like transaction:', err);
+    }
+  };
+
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Stop click bubbling up to parent article card container
     
@@ -105,9 +207,6 @@ export default function PostCard({ post }: PostCardProps) {
     setLikes(nextLikedState ? likes + 1 : likes - 1);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUserId = sessionData?.session?.user?.id;
-
       if (!currentUserId) return;
 
       if (nextLikedState) {
@@ -136,9 +235,6 @@ export default function PostCard({ post }: PostCardProps) {
     setIsBookmarked(nextBookmarkState);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUserId = sessionData?.session?.user?.id;
-
       if (!currentUserId) return;
 
       if (nextBookmarkState) {
@@ -170,8 +266,6 @@ export default function PostCard({ post }: PostCardProps) {
 
     try {
       setIsSubmittingComment(true);
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUserId = sessionData?.session?.user?.id;
       if (!currentUserId) return;
 
       const { error } = await supabase
@@ -201,8 +295,6 @@ export default function PostCard({ post }: PostCardProps) {
     setShares(shares + 1);
 
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const currentUserId = sessionData?.session?.user?.id;
       if (!currentUserId) return;
 
       const { error } = await supabase
@@ -245,6 +337,8 @@ export default function PostCard({ post }: PostCardProps) {
     }
   };
 
+  if (isDeleted) return null;
+
   return (
     <>
       <article 
@@ -258,16 +352,29 @@ export default function PostCard({ post }: PostCardProps) {
           </Avatar>
           <div className="flex-1 min-w-0">
             {/* Author Info */}
-            <div className="flex items-center gap-1 flex-wrap">
-              <span className="font-semibold text-foreground hover:underline">
-                {post.author.displayName}
-              </span>
-              {post.author.isVerified && (
-                <BadgeCheck className="h-4 w-4 text-primary" />
+            <div className="flex items-center justify-between gap-1 flex-wrap">
+              <div className="flex items-center gap-1 flex-wrap">
+                <span className="font-semibold text-foreground hover:underline">
+                  {post.author.displayName}
+                </span>
+                {post.author.isVerified && (
+                  <BadgeCheck className="h-4 w-4 text-primary" />
+                )}
+                <span className="text-muted-foreground">@{post.author.username}</span>
+                <span className="text-muted-foreground">·</span>
+                <span className="text-muted-foreground hover:underline">{post.createdAt}</span>
+              </div>
+              
+              {/* Delete Main Post option if owned */}
+              {currentUserId === post.author.id && (
+                <button
+                  onClick={handleDeletePost}
+                  className="text-muted-foreground hover:text-red-500 rounded-full p-1.5 hover:bg-red-500/10 transition-colors"
+                  title="Delete Post"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               )}
-              <span className="text-muted-foreground">@{post.author.username}</span>
-              <span className="text-muted-foreground">·</span>
-              <span className="text-muted-foreground hover:underline">{post.createdAt}</span>
             </div>
 
             {/* Content */}
@@ -356,12 +463,23 @@ export default function PostCard({ post }: PostCardProps) {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <h3 className="text-lg font-bold text-foreground">Post Thread</h3>
-              <button 
-                onClick={() => setIsCommentsModalOpen(false)}
-                className="rounded-full p-1.5 hover:bg-secondary transition-colors"
-              >
-                <X className="h-5 w-5 text-foreground" />
-              </button>
+              <div className="flex items-center gap-1">
+                {currentUserId === post.author.id && (
+                  <button
+                    onClick={handleDeletePost}
+                    className="rounded-full p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 transition-colors mr-1"
+                    title="Delete Post"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                )}
+                <button 
+                  onClick={() => setIsCommentsModalOpen(false)}
+                  className="rounded-full p-1.5 hover:bg-secondary transition-colors"
+                >
+                  <X className="h-5 w-5 text-foreground" />
+                </button>
+              </div>
             </div>
 
             {/* Modal Body Container */}
@@ -372,7 +490,7 @@ export default function PostCard({ post }: PostCardProps) {
                   <AvatarImage src={post.author.avatar || undefined} />
                   <AvatarFallback>{post.author.displayName?.[0]}</AvatarFallback>
                 </Avatar>
-                <div>
+                <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1">
                     <span className="font-semibold text-sm">{post.author.displayName}</span>
                     <span className="text-xs text-muted-foreground">@{post.author.username}</span>
@@ -399,27 +517,70 @@ export default function PostCard({ post }: PostCardProps) {
                 <div className="space-y-4">
                   {commentsList.map((comment) => {
                     const commentAuthor = comment.profiles || {};
+                    // Authorization logic: comment owner OR post thread owner can delete
+                    const canDeleteComment = currentUserId === comment.user_id || currentUserId === post.author.id;
+
                     return (
-                      <div key={comment.id} className="flex gap-3 items-start text-sm">
+                      <div key={comment.id} className="flex gap-3 items-start text-sm group/item">
                         <Avatar className="h-8 w-8 flex-shrink-0">
                           <AvatarImage src={commentAuthor.avatar || undefined} />
                           <AvatarFallback>{commentAuthor.display_name?.[0] || 'U'}</AvatarFallback>
                         </Avatar>
-                        <div className="bg-secondary/40 rounded-2xl px-3 py-2 flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <span className="font-semibold text-xs text-foreground">
-                              {commentAuthor.display_name || 'Konek User'}
-                            </span>
-                            {commentAuthor.is_verified && (
-                              <BadgeCheck className="h-3 w-3 text-primary" />
-                            )}
-                            <span className="text-[11px] text-muted-foreground">
-                              @{commentAuthor.username || 'user'}
-                            </span>
+                        
+                        <div className="flex-1 min-w-0">
+                          <div className="bg-secondary/40 rounded-2xl px-3 py-2">
+                            <div className="flex items-center justify-between gap-1.5">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <span className="font-semibold text-xs text-foreground truncate">
+                                  {commentAuthor.display_name || 'User'}
+                                </span>
+                                {commentAuthor.is_verified && (
+                                  <BadgeCheck className="h-3 w-3 text-primary shrink-0" />
+                                )}
+                                <span className="text-[11px] text-muted-foreground truncate">
+                                  @{commentAuthor.username || 'user'}
+                                </span>
+                              </div>
+
+                              {/* Comment Delete Options Trigger */}
+                              {canDeleteComment && (
+                                <button
+                                  onClick={() => handleDeleteComment(comment.id)}
+                                  className="text-muted-foreground hover:text-red-500 opacity-0 group-hover/item:opacity-100 transition-opacity p-0.5 rounded"
+                                  title="Delete Comment"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                            <p className="text-sm text-foreground mt-0.5 whitespace-pre-wrap">
+                              {comment.content}
+                            </p>
                           </div>
-                          <p className="text-sm text-foreground mt-0.5 whitespace-pre-wrap">
-                            {comment.content}
-                          </p>
+
+                          {/* Action Row Under Comment Block */}
+                          <div className="flex items-center gap-4 mt-1 ml-2 text-xs text-muted-foreground">
+                            {/* Like Comment Toggle */}
+                            <button
+                              onClick={() => handleLikeComment(comment.id, comment.isLiked)}
+                              className={cn(
+                                "flex items-center gap-1 hover:text-red-500 transition-colors",
+                                comment.isLiked && "text-red-500 font-medium"
+                              )}
+                            >
+                              <Heart className={cn("h-3.5 w-3.5", comment.isLiked && "fill-current")} />
+                              <span>{comment.likesCount > 0 ? comment.likesCount : 'Like'}</span>
+                            </button>
+
+                            {/* Reply directly inside Thread field */}
+                            <button
+                              onClick={() => setNewCommentText(`Reply @${commentAuthor.username} `)}
+                              className="flex items-center gap-1 hover:text-primary transition-colors"
+                            >
+                              <CornerDownRight className="h-3.5 w-3.5" />
+                              <span>Reply</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     );
@@ -432,7 +593,7 @@ export default function PostCard({ post }: PostCardProps) {
             <form onSubmit={handleSubmitComment} className="p-3 border-t border-border bg-background flex gap-2 items-center">
               <input
                 type="text"
-                placeholder="Post your reply"
+                placeholder="Post your reply..."
                 value={newCommentText}
                 onChange={(e) => setNewCommentText(e.target.value)}
                 disabled={isSubmittingComment}
