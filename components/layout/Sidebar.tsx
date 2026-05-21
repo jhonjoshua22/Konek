@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 
+// Updated Profile href to point to the dynamic username path
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/explore', label: 'Explore', icon: Search },
@@ -49,8 +50,6 @@ export default function Sidebar() {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      
-      // Redirect the user back to the login view after cleanup
       router.push('/login');
     } catch (error: any) {
       console.error('Error logging out:', error.message);
@@ -77,11 +76,16 @@ export default function Sidebar() {
       <nav className="mt-6 flex-1">
         <ul className="space-y-1">
           {navItems.map((item) => {
-            const isActive = router.pathname === item.href;
+            // For the profile link, check if the current path includes 'profile'
+            const isActive = item.href === '/profile' 
+              ? router.pathname.startsWith('/profile') 
+              : router.pathname === item.href;
+              
             return (
               <li key={item.href}>
                 <Link
-                  href={item.href}
+                  // If it's the profile link, point to the username-based dynamic route
+                  href={item.href === '/profile' ? `/profile/${currentProfile.username}` : item.href}
                   className={cn(
                     'flex items-center gap-4 rounded-xl px-4 py-3 text-lg font-medium transition-colors',
                     isActive
@@ -102,8 +106,8 @@ export default function Sidebar() {
         Post
       </Button>
 
-      {/* User Profile Footer section */}
-      <div className="mt-4 flex flex-col gap-2 rounded-xl p-3 border border-border/40 bg-card/10">
+      {/* User Profile Footer section - Wrapped in Link to direct to the username profile */}
+      <Link href={`/profile/${currentProfile.username}`} className="mt-4 flex flex-col gap-2 rounded-xl p-3 border border-border/40 bg-card/10 hover:bg-card/20 transition-colors">
         <div className="flex items-center gap-3 cursor-pointer">
           <Avatar className="h-10 w-10">
             <AvatarImage src={currentProfile.avatar} alt={currentProfile.display_name} />
@@ -116,13 +120,16 @@ export default function Sidebar() {
         </div>
         
         <button
-          onClick={handleSignOut}
+          onClick={(e) => {
+            e.preventDefault(); // Prevent Link navigation when clicking sign out
+            handleSignOut();
+          }}
           className="mt-1 flex items-center justify-center gap-2 w-full rounded-lg py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors border border-destructive/10"
         >
           <LogOut className="h-4 w-4" />
           <span>Sign Out</span>
         </button>
-      </div>
+      </Link>
     </aside>
   );
 }
