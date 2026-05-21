@@ -41,6 +41,7 @@ export default function PostCard({ post }: PostCardProps) {
   const [likes, setLikes] = useState(post.likes);
   const [commentsCount, setCommentsCount] = useState(post.comments);
   const [shares, setShares] = useState(post.shares);
+  const [isReposted, setIsReposted] = useState(false);
   const [isDeleted, setIsDeleted] = useState(false);
 
   // Modal and Comments Tracking States
@@ -61,7 +62,7 @@ export default function PostCard({ post }: PostCardProps) {
     getUserSession();
   }, []);
 
-  // Fetch real-time counts from DB when initialized
+  // Fetch real-time counts from DB when initialized or when currentUserId changes
   useEffect(() => {
     async function fetchEngagements() {
       try {
@@ -72,12 +73,29 @@ export default function PostCard({ post }: PostCardProps) {
 
         if (commentsRes.count !== null) setCommentsCount(commentsRes.count);
         if (repostsRes.count !== null) setShares(repostsRes.count);
+
+        if (currentUserId) {
+          const { count } = await supabase
+            .from('reposts')
+            .select('id', { count: 'exact', head: true })
+            .eq('post_id', post.id)
+            .eq('user_id', currentUserId);
+          
+          setIsReposted(!!count);
+        }
       } catch (err) {
         console.error('Error fetching counter engagements:', err);
       }
     }
     fetchEngagements();
-  }, [post.id]);
+  }, [post.id, currentUserId]);
+
+  // Re-run comments processing if comments modal is open and user state updates asynchronously
+  useEffect(() => {
+    if (isCommentsModalOpen && currentUserId) {
+      fetchCommentsList();
+    }
+  }, [currentUserId]);
 
   // Fetch Full Thread Comments when modal opens
   const fetchCommentsList = async () => {
@@ -290,24 +308,32 @@ export default function PostCard({ post }: PostCardProps) {
 
   const handleRepostClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!currentUserId) return;
 
-    // Optimistic state bump incrementor
-    setShares(shares + 1);
+    const nextRepostState = !isReposted;
+    setIsReposted(nextRepostState);
+    setShares(nextRepostState ? shares + 1 : Math.max(0, shares - 1));
 
     try {
-      if (!currentUserId) return;
-
-      const { error } = await supabase
-        .from('reposts')
-        .insert({
-          post_id: post.id,
-          user_id: currentUserId
-        });
-
-      if (error) throw error;
+      if (nextRepostState) {
+        const { error } = await supabase
+          .from('reposts')
+          .insert({
+            post_id: post.id,
+            user_id: currentUserId
+          });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('reposts')
+          .delete()
+          .eq('post_id', post.id)
+          .eq('user_id', currentUserId);
+        if (error) throw error;
+      }
     } catch (error) {
-      console.error('Error adding repost transaction to backend:', error);
-      // Revert optimistic count if writing fails
+      console.error('Error adding/removing repost transaction backend:', error);
+      setIsReposted(!nextRepostState);
       setShares(shares);
     }
   };
@@ -405,10 +431,13 @@ export default function PostCard({ post }: PostCardProps) {
 
               <button 
                 onClick={handleRepostClick}
-                className="group flex items-center gap-2 text-muted-foreground hover:text-green-500 transition-colors"
+                className={cn(
+                  'group flex items-center gap-2 transition-colors',
+                  isReposted ? 'text-green-500' : 'text-muted-foreground hover:text-green-500'
+                )}
               >
                 <div className="rounded-full p-2 group-hover:bg-green-500/10 transition-colors">
-                  <Repeat2 className="h-5 w-5" />
+                  <Repeat2 className={cn('h-5 w-5', isReposted && 'stroke-[2.5px]')} />
                 </div>
                 <span className="text-sm">{formatNumber(shares)}</span>
               </button>
