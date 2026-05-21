@@ -53,6 +53,8 @@ export default function HomePage() {
           content,
           image,
           created_at,
+          mood,
+          location,
           author:profiles (
             id,
             username,
@@ -97,6 +99,8 @@ export default function HomePage() {
             shares: 0,
             isLiked: isLiked,
             isBookmarked: isBookmarked,
+            mood: post.mood,
+            location: post.location,
             author: {
               id: post.author?.id,
               username: post.author?.username,

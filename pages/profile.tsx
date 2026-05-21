@@ -101,7 +101,7 @@ export default function ProfilePage() {
 
       const { data: postsData } = await supabase
         .from('posts')
-        .select(`id, content, image, created_at, likes (user_id), bookmarks (user_id)`)
+        .select(`id, content, image, created_at, mood, location, likes (user_id), bookmarks (user_id)`)
         .eq('author_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -111,7 +111,7 @@ export default function ProfilePage() {
 
       const { data: likedData } = await supabase
         .from('likes')
-        .select(`post:posts (id, content, image, created_at, author:profiles (id, username, display_name, avatar, is_verified, bio, cover_image, location, website, created_at), likes (user_id), bookmarks (user_id))`)
+        .select(`post:posts (id, content, image, created_at, mood, location, author:profiles (id, username, display_name, avatar, is_verified, bio, cover_image, location, website, created_at), likes (user_id), bookmarks (user_id))`)
         .eq('user_id', user.id);
 
       if (likedData) {
@@ -120,7 +120,7 @@ export default function ProfilePage() {
 
       const { data: bookmarkedData } = await supabase
         .from('bookmarks')
-        .select(`post:posts (id, content, image, created_at, author:profiles (id, username, display_name, avatar, is_verified, bio, cover_image, location, website, created_at), likes (user_id), bookmarks (user_id))`)
+        .select(`post:posts (id, content, image, created_at, mood, location, author:profiles (id, username, display_name, avatar, is_verified, bio, cover_image, location, website, created_at), likes (user_id), bookmarks (user_id))`)
         .eq('user_id', user.id);
 
       if (bookmarkedData) {
@@ -153,6 +153,8 @@ export default function ProfilePage() {
       shares: 0,
       isLiked,
       isBookmarked,
+      mood: post.mood,
+      location: post.location,
       author: {
         id: authorData?.id,
         username: authorData?.username,
