@@ -1,45 +1,32 @@
-import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
-import './globals.css'
+'use client';
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
+import { ReactNode } from 'react';
+import Sidebar from './Sidebar';
+import MobileNav from './MobileNav';
+import RightSidebar from './RightSidebar';
 
-export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.app',
-  icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
-  },
+interface LayoutProps {
+  children: ReactNode;
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function Layout({ children }: LayoutProps) {
   return (
-    <html lang="en">
-      <body className="font-sans antialiased">
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
-      </body>
-    </html>
-  )
+    <div className="min-h-screen bg-background">
+      {/* Desktop Sidebar */}
+      <Sidebar />
+      
+      {/* Main Content Area */}
+      <div className="lg:ml-64 xl:mr-80">
+        <main className="min-h-screen pb-20 lg:pb-0">
+          {children}
+        </main>
+      </div>
+      
+      {/* Right Sidebar - Desktop Only */}
+      <RightSidebar />
+      
+      {/* Mobile Bottom Navigation */}
+      <MobileNav />
+    </div>
+  );
 }
