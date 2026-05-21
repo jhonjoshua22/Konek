@@ -1,5 +1,5 @@
 import Head from 'next/head';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
   MoreHorizontal, 
@@ -9,19 +9,26 @@ import {
   BadgeCheck,
   Grid3X3,
   MessageSquare,
-  Heart
+  Heart,
+  Loader2
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { currentUser, mockPosts, formatNumber } from '@/lib/mock-data';
+import { formatNumber } from '@/lib/mock-data';
 import PostCard from '@/components/feed/PostCard';
 import Link from 'next/link';
+import { supabase } from '@/lib/supabase';
 
 type TabType = 'posts' | 'replies' | 'likes';
 
 export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState<TabType>('posts');
+  const [profile, setProfile] = useState<any>(null);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [likedPosts, setLikedPosts] = useState<any[]>([]);
+  const [stats, setStats] = useState({ followers: 0, following: 0, postsCount: 0 });
+  const [loading, setLoading] = useState(true);
 
   const tabs: { id: TabType; label: string; icon: React.ElementType }[] = [
     { id: 'posts', label: 'Posts', icon: Grid3X3 },
@@ -29,14 +36,141 @@ export default function ProfilePage() {
     { id: 'likes', label: 'Likes', icon: Heart },
   ];
 
-  // Mock user posts
-  const userPosts = mockPosts.filter((_, index) => index % 2 === 0);
+  useEffect(() => {
+    async function loadProfileData() {
+      try {
+        setLoading(true);
+        
+        // 1. Get current user session
+        const { data: sessionData } = await supabase.auth.getSession();
+        const user = sessionData?.session?.user;
+        
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        // 2. Fetch public profile row
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) throw profileError;
+        setProfile(profileData);
+
+        // 3. Fetch count metrics dynamically (Followers, Following, and Posts)
+        const [postsCountRes, followersRes, followingRes] = await Promise.all([
+          supabase.from('posts').select('id', { count: 'exact', head: true }).eq('author_id', user.id),
+          supabase.from('follows').select('id', { count: 'exact', head: true }).eq('following_id', user.id),
+          supabase.from('follows').select('id', { count: 'exact', head: true }).eq('follower_id', user.id)
+        ]);
+
+        setStats({
+          postsCount: postsCountRes.count || 0,
+          followers: followersRes.count || 0,
+          following: followingRes.count || 0
+        });
+
+        // 4. Fetch user's own posts
+        const { data: postsData } = await supabase
+          .from('posts')
+          .select(`
+            id, content, image, created_at,
+            likes (user_id), bookmarks (user_id)
+          `)
+          .eq('author_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (postsData) {
+          const formattedOwnPosts = postsData.map((p: any) => formatPostRow(p, profileData, user.id));
+          setPosts(formattedOwnPosts);
+        }
+
+        // 5. Fetch posts the user liked
+        const { data: likedData } = await supabase
+          .from('likes')
+          .select(`
+            post:posts (
+              id, content, image, created_at,
+              author:profiles (id, username, display_name, avatar, is_verified, bio, cover_image),
+              likes (user_id), bookmarks (user_id)
+            )
+          `)
+          .eq('user_id', user.id);
+
+        if (likedData) {
+          const cleanLikedPosts = likedData
+            .filter((item: any) => item.post !== null)
+            .map((item: any) => formatPostRow(item.post, item.post.author, user.id));
+          setLikedPosts(cleanLikedPosts);
+        }
+
+      } catch (error: any) {
+        console.error('Error fetching profile dataset:', error.message);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProfileData();
+  }, []);
+
+  // Structural transformation helper
+  function formatPostRow(post: any, authorData: any, currentUserId: string) {
+    const totalLikes = post.likes?.length || 0;
+    const isLiked = post.likes?.some((l: any) => l.user_id === currentUserId) || false;
+    const isBookmarked = post.bookmarks?.some((b: any) => b.user_id === currentUserId) || false;
+    const timeAgo = new Date(post.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+    return {
+      id: post.id,
+      content: post.content,
+      image: post.image,
+      createdAt: timeAgo,
+      likes: totalLikes,
+      comments: 0,
+      shares: 0,
+      isLiked,
+      isBookmarked,
+      author: {
+        id: authorData?.id,
+        username: authorData?.username,
+        displayName: authorData?.display_name,
+        avatar: authorData?.avatar,
+        bio: authorData?.bio,
+        coverImage: authorData?.cover_image,
+        isVerified: authorData?.is_verified,
+        followers: 0,
+        following: 0,
+        postsCount: 0
+      }
+    };
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center border-x border-border">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Fallback if profile is empty or unauthenticated
+  const currentProfile = profile || {
+    display_name: 'Konek User',
+    username: 'user',
+    avatar: '',
+    bio: '',
+    cover_image: ''
+  };
 
   return (
     <>
       <Head>
-        <title>{currentUser.displayName} (@{currentUser.username}) / Konek</title>
-        <meta name="description" content={currentUser.bio} />
+        <title>{currentProfile.display_name} (@{currentProfile.username}) / Konek</title>
+        <meta name="description" content={currentProfile.bio || "User Profile"} />
       </Head>
 
       <div className="min-h-screen border-x border-border">
@@ -51,11 +185,11 @@ export default function ProfilePage() {
             </Link>
             <div>
               <h1 className="text-xl font-bold text-foreground flex items-center gap-1">
-                {currentUser.displayName}
-                {currentUser.isVerified && <BadgeCheck className="h-5 w-5 text-primary" />}
+                {currentProfile.display_name}
+                {currentProfile.is_verified && <BadgeCheck className="h-5 w-5 text-primary" />}
               </h1>
               <p className="text-sm text-muted-foreground">
-                {formatNumber(currentUser.postsCount)} posts
+                {formatNumber(stats.postsCount)} posts
               </p>
             </div>
           </div>
@@ -63,11 +197,13 @@ export default function ProfilePage() {
 
         {/* Cover Image */}
         <div className="relative h-48 md:h-64 bg-secondary">
-          <img
-            src={currentUser.coverImage}
-            alt="Cover"
-            className="w-full h-full object-cover"
-          />
+          {currentProfile.cover_image && (
+            <img
+              src={currentProfile.cover_image}
+              alt="Cover"
+              className="w-full h-full object-cover"
+            />
+          )}
         </div>
 
         {/* Profile Info */}
@@ -75,9 +211,9 @@ export default function ProfilePage() {
           {/* Avatar */}
           <div className="relative -mt-16 md:-mt-20 mb-4">
             <Avatar className="h-32 w-32 md:h-36 md:w-36 border-4 border-background">
-              <AvatarImage src={currentUser.avatar} alt={currentUser.displayName} />
+              <AvatarImage src={currentProfile.avatar} alt={currentProfile.display_name} />
               <AvatarFallback className="text-4xl">
-                {currentUser.displayName[0]}
+                {currentProfile.display_name[0]}
               </AvatarFallback>
             </Avatar>
           </div>
@@ -92,14 +228,14 @@ export default function ProfilePage() {
           {/* User Info */}
           <div className="mt-2">
             <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
-              {currentUser.displayName}
-              {currentUser.isVerified && <BadgeCheck className="h-6 w-6 text-primary" />}
+              {currentProfile.display_name}
+              {currentProfile.is_verified && <BadgeCheck className="h-6 w-6 text-primary" />}
             </h2>
-            <p className="text-muted-foreground">@{currentUser.username}</p>
+            <p className="text-muted-foreground">@{currentProfile.username}</p>
           </div>
 
           {/* Bio */}
-          <p className="mt-4 text-foreground">{currentUser.bio}</p>
+          <p className="mt-4 text-foreground">{currentProfile.bio || "No bio yet."}</p>
 
           {/* Meta Info */}
           <div className="flex flex-wrap items-center gap-4 mt-4 text-muted-foreground">
@@ -110,12 +246,12 @@ export default function ProfilePage() {
             <span className="flex items-center gap-1">
               <LinkIcon className="h-4 w-4" />
               <a href="#" className="text-primary hover:underline">
-                konek.dev/joshuaabutan
+                konek.dev/{currentProfile.username}
               </a>
             </span>
             <span className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
-              Joined March 2020
+              Joined Recently
             </span>
           </div>
 
@@ -123,13 +259,13 @@ export default function ProfilePage() {
           <div className="flex items-center gap-6 mt-4">
             <button className="hover:underline">
               <span className="font-bold text-foreground">
-                {formatNumber(currentUser.following)}
+                {formatNumber(stats.following)}
               </span>{' '}
               <span className="text-muted-foreground">Following</span>
             </button>
             <button className="hover:underline">
               <span className="font-bold text-foreground">
-                {formatNumber(currentUser.followers)}
+                {formatNumber(stats.followers)}
               </span>{' '}
               <span className="text-muted-foreground">Followers</span>
             </button>
@@ -164,9 +300,13 @@ export default function ProfilePage() {
         <div>
           {activeTab === 'posts' && (
             <div>
-              {userPosts.map((post) => (
-                <PostCard key={post.id} post={{ ...post, author: currentUser }} />
-              ))}
+              {posts.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">No posts published yet</div>
+              ) : (
+                posts.map((post) => (
+                  <PostCard key={post.id} post={post} />
+                ))
+              )}
             </div>
           )}
           {activeTab === 'replies' && (
@@ -176,9 +316,13 @@ export default function ProfilePage() {
           )}
           {activeTab === 'likes' && (
             <div>
-              {mockPosts.slice(0, 3).map((post) => (
-                <PostCard key={post.id} post={post} />
-              ))}
+              {likedPosts.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">No liked posts yet</div>
+              ) : (
+                likedPosts.map((post) => (
+                  <PostCard key={post.id} post={post} />
+                ))
+              )}
             </div>
           )}
         </div>
