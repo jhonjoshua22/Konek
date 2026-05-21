@@ -38,7 +38,7 @@ export default function ExplorePage() {
 
         if (topicsData) setTrendingTopics(topicsData);
 
-        // 2. Fetch suggested profiles
+        // 2. Fetch suggested profiles with follow status
         let profilesQuery = supabase
           .from('profiles')
           .select(`
@@ -47,7 +47,7 @@ export default function ExplorePage() {
             display_name,
             avatar,
             is_verified,
-            follows!follows_following_id_fkey(id)
+            follows:follows!follows_following_id_fkey(follower_id)
           `)
           .limit(8);
 
@@ -64,12 +64,12 @@ export default function ExplorePage() {
             displayName: acc.display_name,
             avatar: acc.avatar,
             isVerified: acc.is_verified,
-            followers: acc.follows?.length || 0,
+            isFollowed: userId ? acc.follows.some((f: any) => f.follower_id === userId) : false,
           }));
           setSuggestedAccounts(formattedAccounts);
         }
 
-        // 3. Fetch posts for discovery
+        // 3. Fetch posts for discovery (including mood and location)
         const { data: postsData } = await supabase
           .from('posts')
           .select(`
@@ -77,7 +77,9 @@ export default function ExplorePage() {
             content,
             image,
             created_at,
-            author:profiles(id, display_name, avatar, is_verified)
+            mood,
+            location,
+            author:profiles(id, display_name, avatar, is_verified, username)
           `)
           .not('image', 'is', null)
           .order('created_at', { ascending: false })
@@ -104,7 +106,11 @@ export default function ExplorePage() {
         .insert([{ follower_id: currentUserId, following_id: followingId }]);
       
       if (error) throw error;
-      setSuggestedAccounts((prev) => prev.filter((acc) => acc.id !== followingId));
+      
+      // Update UI to show "followed" state
+      setSuggestedAccounts((prev) => 
+        prev.map(acc => acc.id === followingId ? { ...acc, isFollowed: true } : acc)
+      );
     } catch (error) {
       console.error('Error following user:', error);
     } finally {
@@ -170,11 +176,12 @@ export default function ExplorePage() {
                     <p className="text-sm text-muted-foreground truncate">@{user.username}</p>
                     <Button 
                       size="sm" 
+                      variant={user.isFollowed ? "outline" : "default"}
                       className="rounded-full mt-3 w-full" 
                       onClick={() => handleFollow(user.id)}
-                      disabled={loadingFollow === user.id}
+                      disabled={loadingFollow === user.id || user.isFollowed}
                     >
-                      {loadingFollow === user.id ? '...' : 'Follow'}
+                      {loadingFollow === user.id ? '...' : user.isFollowed ? 'Followed' : 'Follow'}
                     </Button>
                   </div>
                 ))}
