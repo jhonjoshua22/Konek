@@ -41,6 +41,7 @@ export default function ProfilePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     displayName: '',
+    username: '',
     bio: '',
     location: '',
     website: '',
@@ -77,6 +78,7 @@ export default function ProfilePage() {
       
       setFormData({
         displayName: profileData.display_name || '',
+        username: profileData.username || '',
         bio: profileData.bio || '',
         location: profileData.location || '',
         website: profileData.website || '',
@@ -165,7 +167,6 @@ export default function ProfilePage() {
     };
   }
 
-  // Upload handler for Supabase Storage
   const handleFileUpload = async (file: File, bucket: string) => {
     try {
       const fileExt = file.name.split('.').pop();
@@ -192,6 +193,7 @@ export default function ProfilePage() {
         .from('profiles')
         .update({
           display_name: formData.displayName,
+          username: formData.username,
           bio: formData.bio,
           location: formData.location,
           website: formData.website,
@@ -326,14 +328,14 @@ export default function ProfilePage() {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
-          <div className="w-full max-w-lg bg-background rounded-2xl border border-border shadow-lg p-4 space-y-4">
+          <div className="w-full max-w-lg bg-background rounded-2xl border border-border shadow-lg p-6 space-y-4">
             <div className="flex justify-between items-center border-b pb-3">
               <button onClick={() => setIsModalOpen(false)} className="rounded-full p-1 hover:bg-secondary"><X className="h-5 w-5" /></button>
               <h3 className="font-bold text-lg">Edit profile</h3>
               <Button onClick={handleSaveChanges} disabled={isSaving} className="rounded-full px-5">{isSaving ? <Loader2 className="animate-spin h-4 w-4" /> : 'Save'}</Button>
             </div>
 
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto pr-2">
               <div className="flex justify-center">
                 <div className="relative group cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
                   <Avatar className="h-24 w-24"><AvatarImage src={formData.avatar} /></Avatar>
@@ -358,8 +360,11 @@ export default function ProfilePage() {
                 }
               }} />
 
-              <input value={formData.displayName} onChange={(e) => setFormData({...formData, displayName: e.target.value})} className="w-full p-2 border rounded" placeholder="Name" />
-              <textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} className="w-full p-2 border rounded" placeholder="Bio" />
+              <input value={formData.displayName} onChange={(e) => setFormData({...formData, displayName: e.target.value})} className="w-full p-2 border rounded text-sm" placeholder="Name" />
+              <input value={formData.username} onChange={(e) => setFormData({...formData, username: e.target.value})} className="w-full p-2 border rounded text-sm" placeholder="Username" />
+              <textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} className="w-full p-2 border rounded text-sm" placeholder="Bio" />
+              <input value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="w-full p-2 border rounded text-sm" placeholder="Location" />
+              <input value={formData.website} onChange={(e) => setFormData({...formData, website: e.target.value})} className="w-full p-2 border rounded text-sm" placeholder="Website" />
             </div>
           </div>
         </div>
