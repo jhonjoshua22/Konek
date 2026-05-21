@@ -12,8 +12,10 @@ import Sidebar from '@/components/layout/Sidebar';
 import RightSidebar from '@/components/layout/RightSidebar';
 
 export default function UserProfilePage() {
-  const { username } = useParams();
+  const params = useParams();
+  const username = params?.username;
   const router = useRouter();
+  
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,8 +23,9 @@ export default function UserProfilePage() {
   const [stats, setStats] = useState({ followers: 0, following: 0, postsCount: 0 });
 
   useEffect(() => {
+    if (!username) return;
+
     async function loadUserProfile() {
-      if (!username) return;
       try {
         setLoading(true);
         const { data: { user } } = await supabase.auth.getUser();
@@ -36,7 +39,6 @@ export default function UserProfilePage() {
         if (userError || !userData) throw new Error("User not found");
         setProfile(userData);
 
-        // Check if current user follows this profile
         if (user && user.id !== userData.id) {
           const { data: followData } = await supabase
             .from('follows')
