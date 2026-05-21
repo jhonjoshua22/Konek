@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Image, Smile, MapPin, Calendar, Loader2 } from 'lucide-react';
+import { Image, Smile, MapPin, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
@@ -122,9 +122,6 @@ export default function CreatePost({ onPostCreated, userAvatar }: CreatePostProp
               </button>
               <button type="button" className="rounded-full p-2 text-primary hover:bg-primary/10 transition-colors" disabled={isSubmitting}>
                 <MapPin className="h-5 w-5" />
-              </button>
-              <button type="button" className="rounded-full p-2 text-primary hover:bg-primary/10 transition-colors" disabled={isSubmitting}>
-                <Calendar className="h-5 w-5" />
               </button>
             </div>
             <Button
