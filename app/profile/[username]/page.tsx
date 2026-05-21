@@ -100,7 +100,9 @@ export default function UserProfilePage() {
   if (!profile) return <div className="p-12 text-center">User not found.</div>;
 
   return (
-    <div className="max-w-2xl min-h-screen border-x border-border">
+    // The Layout.tsx already provides the Sidebar and RightSidebar via its structure.
+    // This div ensures the main content area centers correctly between those sidebars.
+    <div className="w-full max-w-2xl border-x border-border min-h-screen">
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg px-4 py-3 flex items-center gap-4">
         <button onClick={() => router.back()} className="rounded-full p-2 hover:bg-secondary/50"><ArrowLeft className="h-5 w-5" /></button>
         <div>
