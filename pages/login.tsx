@@ -1,5 +1,5 @@
 import Head from 'next/head';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import { supabase } from '@/lib/supabase'; // Assumes your client is initialized here
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Check if user is already logged in, redirect them to home if they are
+  useEffect(() => {
+    async function checkUserSession() {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session) {
+        router.push('/');
+      }
+    }
+    checkUserSession();
+  }, [router]);
 
   // Handle traditional Email/Password Login
   const handleEmailLogin = async (e: React.FormEvent) => {
@@ -48,7 +59,7 @@ export default function LoginPage() {
         const redirectUrl = typeof window !== 'undefined' 
         ? (window.location.hostname === 'localhost' 
             ? 'http://localhost:3000/' 
-            : window.location.origin + '/')
+            : 'https://konek-flamefoundation.vercel.app/')
         : undefined;
 
         const { error } = await supabase.auth.signInWithOAuth({
