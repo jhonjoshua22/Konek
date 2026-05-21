@@ -19,7 +19,8 @@ export default function UserProfilePage() {
   const [stats, setStats] = useState({ followers: 0, following: 0, postsCount: 0 });
 
   useEffect(() => {
-    if (!username) return;
+    // CRITICAL FIX: Wait for router to be ready before using query params
+    if (!router.isReady || !username) return;
 
     async function loadUserProfile() {
       try {
@@ -71,13 +72,13 @@ export default function UserProfilePage() {
           })));
         }
       } catch (err) {
-        console.error(err);
+        console.error("Profile load error:", err);
       } finally {
         setLoading(false);
       }
     }
     loadUserProfile();
-  }, [username]);
+  }, [username, router.isReady]);
 
   const toggleFollow = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -103,7 +104,9 @@ export default function UserProfilePage() {
         <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg px-4 py-3 flex items-center gap-4">
           <button onClick={() => router.back()} className="rounded-full p-2 hover:bg-secondary/50"><ArrowLeft className="h-5 w-5" /></button>
           <div>
-            <h1 className="font-bold text-xl flex items-center gap-1">{profile.display_name} {profile.is_verified && <BadgeCheck className="h-4 w-4 text-primary" />}</h1>
+            <h1 className="font-bold text-xl flex items-center gap-1">
+              {profile.display_name} {profile.is_verified && <BadgeCheck className="h-4 w-4 text-primary" />}
+            </h1>
             <p className="text-xs text-muted-foreground">{stats.postsCount} posts</p>
           </div>
         </header>
@@ -114,13 +117,18 @@ export default function UserProfilePage() {
 
         <div className="px-4 pb-4 relative">
           <div className="flex justify-between items-start">
-            <Avatar className="h-32 w-32 border-4 border-background -mt-16 mb-4"><AvatarImage src={profile.avatar} /><AvatarFallback>{profile.display_name[0]}</AvatarFallback></Avatar>
+            <Avatar className="h-32 w-32 border-4 border-background -mt-16 mb-4">
+              <AvatarImage src={profile.avatar} />
+              <AvatarFallback>{profile.display_name?.[0] || 'U'}</AvatarFallback>
+            </Avatar>
             <Button variant={isFollowed ? "outline" : "default"} className="mt-4 rounded-full" onClick={toggleFollow}>
               {isFollowed ? "Followed" : "Follow"}
             </Button>
           </div>
 
-          <h2 className="text-2xl font-bold flex items-center gap-1">{profile.display_name} {profile.is_verified && <BadgeCheck className="text-primary" />}</h2>
+          <h2 className="text-2xl font-bold flex items-center gap-1">
+            {profile.display_name} {profile.is_verified && <BadgeCheck className="text-primary" />}
+          </h2>
           <p className="text-muted-foreground">@{profile.username}</p>
           <p className="mt-4">{profile.bio}</p>
           
