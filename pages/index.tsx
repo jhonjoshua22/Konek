@@ -10,6 +10,32 @@ import { Loader2 } from 'lucide-react';
 export default function HomePage() {
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userAvatar, setUserAvatar] = useState<string>('');
+
+  useEffect(() => {
+    async function fetchUserProfile() {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const currentUserId = sessionData?.session?.user?.id;
+
+        if (currentUserId) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('avatar')
+            .eq('id', currentUserId)
+            .single();
+
+          if (profileData?.avatar) {
+            setUserAvatar(profileData.avatar);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user avatar:', error);
+      }
+    }
+
+    fetchUserProfile();
+  }, []);
 
   async function fetchFeedPosts() {
     try {
@@ -124,7 +150,7 @@ export default function HomePage() {
         </header>
 
         {/* Create Post */}
-        <CreatePost onPostCreated={fetchFeedPosts} />
+        <CreatePost onPostCreated={fetchFeedPosts} userAvatar={userAvatar} />
 
         {/* Feed */}
         <div>
