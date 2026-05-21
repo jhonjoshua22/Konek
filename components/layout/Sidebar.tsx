@@ -2,11 +2,12 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Home, Search, MessageCircle, User, Feather } from 'lucide-react';
+import { Home, Search, MessageCircle, User, Feather, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { currentUser } from '@/lib/mock-data';
+import { supabase } from '@/lib/supabase';
 
 const navItems = [
   { href: '/', label: 'Home', icon: Home },
@@ -17,6 +18,18 @@ const navItems = [
 
 export default function Sidebar() {
   const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      // Redirect the user back to the login view after cleanup
+      router.push('/login');
+    } catch (error: any) {
+      console.error('Error logging out:', error.message);
+    }
+  };
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:fixed lg:left-0 lg:top-0 lg:h-screen lg:w-64 lg:border-r lg:border-border lg:bg-sidebar lg:p-4">
@@ -47,7 +60,7 @@ export default function Sidebar() {
                   <item.icon className={cn('h-6 w-6', isActive && 'text-primary')} />
                   {item.label}
                 </Link>
-              </li>
+              </td>
             );
           })}
         </ul>
@@ -58,16 +71,27 @@ export default function Sidebar() {
         Post
       </Button>
 
-      {/* User Profile */}
-      <div className="mt-4 flex items-center gap-3 rounded-xl p-3 hover:bg-secondary/50 cursor-pointer transition-colors">
-        <Avatar className="h-10 w-10">
-          <AvatarImage src={currentUser.avatar} alt={currentUser.displayName} />
-          <AvatarFallback>{currentUser.displayName[0]}</AvatarFallback>
-        </Avatar>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-foreground truncate">{currentUser.displayName}</p>
-          <p className="text-sm text-muted-foreground truncate">@{currentUser.username}</p>
+      {/* User Profile Footer section */}
+      <div className="mt-4 flex flex-col gap-2 rounded-xl p-3 border border-border/40 bg-card/10">
+        <div className="flex items-center gap-3 cursor-pointer">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={currentUser.avatar} alt={currentUser.displayName} />
+            <AvatarFallback>{currentUser.displayName[0]}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-foreground truncate">{currentUser.displayName}</p>
+            <p className="text-sm text-muted-foreground truncate">@{currentUser.username}</p>
+          </div>
         </div>
+        
+        {/* Sign Out Action Button */}
+        <button
+          onClick={handleSignOut}
+          className="mt-1 flex items-center justify-center gap-2 w-full rounded-lg py-2 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors border border-destructive/10"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Sign Out</span>
+        </button>
       </div>
     </aside>
   );

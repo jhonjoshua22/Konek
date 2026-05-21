@@ -44,18 +44,24 @@ export default function LoginPage() {
     setErrorMessage(null);
 
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+        // Detect if the app is running on Vercel or locally
+        const redirectUrl = typeof window !== 'undefined' 
+        ? (window.location.hostname === 'localhost' 
+            ? 'http://localhost:3000/' 
+            : window.location.origin + '/')
+        : undefined;
+
+        const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          // This tells Supabase to redirect back to your Vercel deployment URL or local environment
-          redirectTo: typeof window !== 'undefined' ? `${window.location.origin}/` : undefined,
+            redirectTo: redirectUrl,
         },
-      });
+        });
 
-      if (error) throw error;
+        if (error) throw error;
     } catch (error: any) {
-      setErrorMessage(error.message || 'Failed to initialize Google login.');
-      setLoading(false);
+        setErrorMessage(error.message || 'Failed to initialize Google login.');
+        setLoading(false);
     }
   };
 
