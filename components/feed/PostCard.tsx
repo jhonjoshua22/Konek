@@ -98,6 +98,7 @@ export default function PostCard({ post }: PostCardProps) {
   }, [isCommentsModalOpen]);
 
   // Fetch Full Thread Comments
+  // Fetch Full Thread Comments
   const fetchCommentsList = async () => {
     try {
       setIsLoadingComments(true);
@@ -118,6 +119,8 @@ export default function PostCard({ post }: PostCardProps) {
       if (error) throw error;
 
       const processedComments = (data || []).map((comment: any) => {
+        // Ensure profile data is accessed correctly
+        const profile = Array.isArray(comment.profiles) ? comment.profiles[0] : comment.profiles;
         const userLikes = comment.comment_likes || [];
         const commentLikesCount = userLikes.length;
         const hasLikedComment = currentUserId 
@@ -126,6 +129,7 @@ export default function PostCard({ post }: PostCardProps) {
 
         return {
           ...comment,
+          profiles: profile, // Use the resolved object
           likesCount: commentLikesCount,
           isLiked: hasLikedComment
         };
