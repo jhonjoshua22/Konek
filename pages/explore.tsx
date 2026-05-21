@@ -1,3 +1,5 @@
+'use client';
+
 import Head from 'next/head';
 import { useState, useEffect } from 'react';
 import { Search, TrendingUp, BadgeCheck, Loader2 } from 'lucide-react';
@@ -6,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { formatNumber } from '@/lib/mock-data';
 import { supabase } from '@/lib/supabase';
+import { PostModal } from '@/components/post-modal';
 
 export default function ExplorePage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -13,6 +16,9 @@ export default function ExplorePage() {
   const [suggestedAccounts, setSuggestedAccounts] = useState<any[]>([]);
   const [discoverPosts, setDiscoverPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [selectedPost, setSelectedPost] = useState<any | null>(null);
+  const [loadingFollow, setLoadingFollow] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadExploreData() {
@@ -20,9 +26,10 @@ export default function ExplorePage() {
         setLoading(true);
 
         const { data: sessionData } = await supabase.auth.getSession();
-        const currentUserId = sessionData?.session?.user?.id;
+        const userId = sessionData?.session?.user?.id;
+        setCurrentUserId(userId || null);
 
-        // 1. Fetch dynamic real trending topics from 'trending_topics' table
+        // 1. Fetch dynamic real trending topics
         const { data: topicsData } = await supabase
           .from('trending_topics')
           .select('*')
@@ -31,7 +38,7 @@ export default function ExplorePage() {
 
         if (topicsData) setTrendingTopics(topicsData);
 
-        // 2. Fetch suggested profiles (excluding the current user if signed in)
+        // 2. Fetch suggested profiles
         let profilesQuery = supabase
           .from('profiles')
           .select(`
@@ -44,8 +51,8 @@ export default function ExplorePage() {
           `)
           .limit(8);
 
-        if (currentUserId) {
-          profilesQuery = profilesQuery.not('id', 'eq', currentUserId);
+        if (userId) {
+          profilesQuery = profilesQuery.not('id', 'eq', userId);
         }
 
         const { data: accountsData } = await profilesQuery;
@@ -62,30 +69,21 @@ export default function ExplorePage() {
           setSuggestedAccounts(formattedAccounts);
         }
 
-        // 3. Fetch image posts for the Discover media grid layout section
+        // 3. Fetch posts for discovery
         const { data: postsData } = await supabase
           .from('posts')
           .select(`
             id,
+            content,
             image,
+            created_at,
             author:profiles(id, display_name, avatar)
           `)
           .not('image', 'is', null)
           .order('created_at', { ascending: false })
           .limit(6);
 
-        if (postsData) {
-          const formattedPosts = postsData.map((post: any) => ({
-            id: post.id,
-            image: post.image,
-            author: {
-              id: post.author?.id,
-              displayName: post.author?.display_name || 'Konek User',
-              avatar: post.author?.avatar || '',
-            },
-          }));
-          setDiscoverPosts(formattedPosts);
-        }
+        if (postsData) setDiscoverPosts(postsData);
 
       } catch (error: any) {
         console.error('Error rendering explore live datasets:', error.message);
@@ -97,6 +95,23 @@ export default function ExplorePage() {
     loadExploreData();
   }, []);
 
+  const handleFollow = async (followingId: string) => {
+    if (!currentUserId) return;
+    setLoadingFollow(followingId);
+    try {
+      const { error } = await supabase
+        .from('follows')
+        .insert([{ follower_id: currentUserId, following_id: followingId }]);
+      
+      if (error) throw error;
+      setSuggestedAccounts((prev) => prev.filter((acc) => acc.id !== followingId));
+    } catch (error) {
+      console.error('Error following user:', error);
+    } finally {
+      setLoadingFollow(null);
+    }
+  };
+
   return (
     <>
       <Head>
@@ -105,7 +120,6 @@ export default function ExplorePage() {
       </Head>
 
       <div className="min-h-screen border-x border-border">
-        {/* Header with Search */}
         <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-lg p-4">
           <div className="relative">
             <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
@@ -124,75 +138,57 @@ export default function ExplorePage() {
           </div>
         ) : (
           <>
-            {/* Trending Topics - Horizontal Scroll */}
             <section className="border-b border-border p-4">
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp className="h-5 w-5 text-primary" />
                 <h2 className="text-lg font-bold text-foreground">Trending Now</h2>
               </div>
               <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                {trendingTopics.length === 0 ? (
-                  <p className="text-sm text-muted-foreground p-2">No trending topics right now</p>
-                ) : (
-                  trendingTopics.map((topic) => (
-                    <div
-                      key={topic.id}
-                      className="flex-shrink-0 rounded-xl bg-card p-4 min-w-[160px] hover:bg-secondary/50 cursor-pointer transition-colors border border-border"
-                    >
-                      <p className="text-xs text-muted-foreground mb-1">{topic.category}</p>
-                      <p className="font-semibold text-foreground">{topic.name}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formatNumber(topic.posts_count)} posts
-                      </p>
-                    </div>
-                  ))
-                )}
+                {trendingTopics.map((topic) => (
+                  <div key={topic.id} className="flex-shrink-0 rounded-xl bg-card p-4 min-w-[160px] border border-border">
+                    <p className="text-xs text-muted-foreground mb-1">{topic.category}</p>
+                    <p className="font-semibold text-foreground">{topic.name}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{formatNumber(topic.posts_count)} posts</p>
+                  </div>
+                ))}
               </div>
             </section>
 
-            {/* Suggested Accounts - Horizontal Scroll */}
             <section className="border-b border-border p-4">
               <h2 className="text-lg font-bold text-foreground mb-4">Suggested for you</h2>
               <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                {suggestedAccounts.length === 0 ? (
-                  <p className="text-sm text-muted-foreground p-2">No suggestions available</p>
-                ) : (
-                  suggestedAccounts.map((user) => (
-                    <div
-                      key={user.id}
-                      className="flex-shrink-0 rounded-xl bg-card p-4 min-w-[180px] text-center hover:bg-secondary/50 cursor-pointer transition-colors border border-border"
+                {suggestedAccounts.map((user) => (
+                  <div key={user.id} className="flex-shrink-0 rounded-xl bg-card p-4 min-w-[180px] text-center border border-border">
+                    <Avatar className="h-16 w-16 mx-auto mb-3">
+                      <AvatarImage src={user.avatar} alt={user.displayName} />
+                      <AvatarFallback>{user.displayName[0]}</AvatarFallback>
+                    </Avatar>
+                    <p className="font-semibold text-foreground truncate flex items-center justify-center gap-1">
+                      {user.displayName}
+                      {user.isVerified && <BadgeCheck className="h-4 w-4 text-primary" />}
+                    </p>
+                    <p className="text-sm text-muted-foreground truncate">@{user.username}</p>
+                    <Button 
+                      size="sm" 
+                      className="rounded-full mt-3 w-full" 
+                      onClick={() => handleFollow(user.id)}
+                      disabled={loadingFollow === user.id}
                     >
-                      <Avatar className="h-16 w-16 mx-auto mb-3">
-                        <AvatarImage src={user.avatar} alt={user.displayName} />
-                        <AvatarFallback>{user.displayName[0]}</AvatarFallback>
-                      </Avatar>
-                      <p className="font-semibold text-foreground truncate flex items-center justify-center gap-1">
-                        {user.displayName}
-                        {user.isVerified && <BadgeCheck className="h-4 w-4 text-primary" />}
-                      </p>
-                      <p className="text-sm text-muted-foreground truncate">@{user.username}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {formatNumber(user.followers)} followers
-                      </p>
-                      <Button size="sm" className="rounded-full mt-3 w-full">
-                        Follow
-                      </Button>
-                    </div>
-                  ))
-                )}
+                      {loadingFollow === user.id ? '...' : 'Follow'}
+                    </Button>
+                  </div>
+                ))}
               </div>
             </section>
 
-            {/* Trending Posts Grid */}
             <section className="p-4">
               <h2 className="text-lg font-bold text-foreground mb-4">Discover</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {discoverPosts.map((post, index) => (
                   <div
                     key={post.id}
-                    className={`relative overflow-hidden rounded-xl cursor-pointer group ${
-                      index === 0 ? 'col-span-2 row-span-2' : ''
-                    }`}
+                    className={`relative overflow-hidden rounded-xl cursor-pointer group ${index === 0 ? 'col-span-2 row-span-2' : ''}`}
+                    onClick={() => setSelectedPost(post)}
                   >
                     <img
                       src={post.image}
@@ -203,36 +199,22 @@ export default function ExplorePage() {
                       <div className="absolute bottom-0 left-0 right-0 p-4">
                         <div className="flex items-center gap-2">
                           <Avatar className="h-8 w-8">
-                            <AvatarImage src={post.author.avatar} alt={post.author.displayName} />
-                            <AvatarFallback>{post.author.displayName[0]}</AvatarFallback>
+                            <AvatarImage src={post.author.avatar} />
+                            <AvatarFallback>{post.author.display_name[0]}</AvatarFallback>
                           </Avatar>
-                          <span className="text-white font-medium text-sm">{post.author.displayName}</span>
+                          <span className="text-white font-medium text-sm">{post.author.display_name}</span>
                         </div>
                       </div>
                     </div>
                   </div>
                 ))}
-                {/* Fallback structural grid placeholders when media items list is small */}
-                {[
-                  'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=400&h=400&fit=crop',
-                  'https://images.unsplash.com/photo-1498050108023-c5249f4df085?w=400&h=400&fit=crop',
-                  'https://images.unsplash.com/photo-1504639725590-34d0984388bd?w=400&h=400&fit=crop',
-                  'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=400&h=400&fit=crop',
-                ].slice(0, Math.max(0, 4 - discoverPosts.length)).map((img, index) => (
-                  <div
-                    key={`extra-${index}`}
-                    className="relative overflow-hidden rounded-xl cursor-pointer group"
-                  >
-                    <img
-                      src={img}
-                      alt="Trending content"
-                      className="w-full h-full object-cover aspect-square group-hover:scale-105 transition-transform duration-300"
-                    />
-                  </div>
-                ))}
               </div>
             </section>
           </>
+        )}
+        
+        {selectedPost && (
+          <PostModal post={selectedPost} onClose={() => setSelectedPost(null)} />
         )}
       </div>
     </>
